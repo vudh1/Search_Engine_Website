@@ -54,7 +54,3 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 - some functions are useful to read the inverted index file (at specific line), doc_ids file, term_line_relation file
 
 *You can find more specific function descriptions in each file. Check the output files after running to confirm the format if you need to read again or use some functions in helper.py file*
-
-## To Do List
-
-*https://docs.google.com/spreadsheets/d/1gk-oogamFdAdLNH0Lg587O3Gf3ghufvjnjptBBcBZtA/edit#gid=0*
