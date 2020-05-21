@@ -55,7 +55,6 @@ def add_to_list(text,doc_id):
 		total_tokens[token].append(entry)
 
 
-
 # compute tf_idf_scores of all terms after reading all documents
 
 def compute_tf_idf_scores(num_documents):
@@ -64,10 +63,11 @@ def compute_tf_idf_scores(num_documents):
 		if df > 0:
 			for entry in posting:
 				tf = entry.get_tf_idf()
-				if tf != 0:
+				if tf != 0 and num_documents != 0:
 					tf_idf = tf * math.log10(num_documents / df)
-					entry.set_tf_idf(tf_idf)
-
+				else:
+					tf_idf = 0
+				entry.set_tf_idf(tf_idf)
 
 
 # reading text from html with tag filter
@@ -103,12 +103,13 @@ def indexer_input(config):
 							text = ' '.join(filter(tag, html.find_all(text=True)))
 							add_to_list(text,num_documents)
 							num_documents += 1
-							# print(num_documents)
+
+							if num_documents % 1000 == 0:
+								print("----> Complete Reading " + str(num_documents)+" files...")
 
 					except Exception:
 						continue
 				# break
-
 	return num_documents
 
 # write all inverted index file to disk
@@ -130,10 +131,8 @@ def indexer(config):
 	print("----> Running indexer_input()....")
 	num_documents = indexer_input(config)
 
-
 	print("----> Running compute_tf_idf_scores()....")
 	compute_tf_idf_scores(num_documents)
-
 
 	print("----> Running write_indexer_output()....")
 	write_indexer_output(config)
@@ -142,3 +141,5 @@ def indexer(config):
 	write_term_line_relationship(config)
 
 	return num_documents
+
+

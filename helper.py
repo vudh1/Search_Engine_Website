@@ -4,8 +4,9 @@ import re
 import math
 import json
 import linecache
-
+import nltk
 from nltk.stem.porter import *
+from config import read_config_file
 
 # tokenize and stemming the text
 
@@ -145,3 +146,36 @@ def write_postings_file(config,total_tokens):
 
 	return json_str
 
+#################################################################################################################################
+
+def get_configurations():
+	# read the configurations (file names, values, etc.)
+	config = read_config_file("config.ini")
+	return config
+
+
+def query_prepare():
+	num_documents = 0
+	num_terms = 0
+
+	config = get_configurations()
+
+	if config is None:
+		print("No config file. Exit now")
+		sys.exit()
+
+	# store doc_ids in memory for fast retrieval (since doc_ids_file is supposed to need small memory space)
+	doc_ids = dict()
+
+	doc_ids = read_doc_ids_file(config)
+	if doc_ids is None:
+		return None,None
+
+	# store term_line_relationship for fast retrieval (since term_line_relationship file is supposed to need small memory space)
+
+	term_line_relationship = dict()
+	term_line_relationship = read_term_line_relationship(config)
+	if term_line_relationship is None:
+		return None,None
+
+	return doc_ids,term_line_relationship

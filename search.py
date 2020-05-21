@@ -81,7 +81,6 @@ def boolean_retrieval(query_postings):
 
 def search(config, query,term_line_relationship):
 	query_terms = analyze_text(query)
-
 	if len(query_terms) == 0:
 		return None
 
