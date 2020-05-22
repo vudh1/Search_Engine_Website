@@ -11,6 +11,9 @@
 $ source venv/bin/activate
 ```
 
+*The program should use Python3 since some functions are not in Python 2 versions*
+
+
 ### Option 1: Console Launch
 ```python
 (venv) $ python3 console_launch.py
@@ -27,30 +30,29 @@ $ source venv/bin/activate
 
 ### Option 2: Web UI Launch
 
-- Set Flask environment variables
+- If you want to create output folder with the inverted index list, use this line or you can skip this and update directly on the web UI
+
+```python
+(venv) $ python3 web_launch.py
+```
+
+- Set Flask environment variables and running the WebUI by running these lines.
 
 ```python
 (venv) $ export FLASK_APP=web_launch.py
 (venv) $ export FLASK_ENV=development
 (venv) $ export FLASK_RUN_HOST=localhost
 (venv) $ export FLASK_RUN_PORT=8000
-```
-
-- If you want to create output folder with the inverted index list before the webUI is set up, use this line. You can skip this and update directly on the web UI
-
-```python
-(venv) $ python3 web_launch.py
-```
-
-- You can start running the WebUI using this line
-
-```python
 (venv) $ flask run
 ```
 
+- Or you can use Makefile instead (it will automatically run all 5 lines above)
+
+```python
+(venv) $ make
+```
 - Using  web browser to access *http://localhost:8000/*  (if you set different host name, port number, use the link shown on console output)
 
-*The program should use Python3 since some functions are not in Python 2 versions*
 
 - To exit the virtual environment, use this line:
 
@@ -101,3 +103,7 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 *You can find more specific function descriptions in each file. Check the output files after running to confirm the format if you need to read again or use some functions in helper.py file*
 
+
+## Demo
+
+![](web_ui.gif)

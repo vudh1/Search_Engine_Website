@@ -106,10 +106,8 @@ def indexer_input(config):
 
 							if num_documents % 1000 == 0:
 								print("----> Complete Reading " + str(num_documents)+" files...")
-
 					except Exception:
 						continue
-				# break
 	return num_documents
 
 # write all inverted index file to disk

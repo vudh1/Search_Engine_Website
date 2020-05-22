@@ -16,10 +16,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = '012345678998765433210'
 log = logging.getLogger('werkzeug')
 log.disabled = True
-app.logger.disabled = True
-
+# app.logger.disabled = True
 
 #################################################################################################################################
+
+print()
 
 def search_ui(query,term_line_relationship):
 	config = get_configurations()
