@@ -8,7 +8,7 @@
 - Type this line in terminal for running in virtual environment from venv folder.
 
 ```python
-$ source venv/bin/activate
+$ source my_virtual_environment/venv/bin/activate
 ```
 
 *The program should use Python3 since some functions are not in Python 2 versions*
@@ -43,7 +43,7 @@ $ source venv/bin/activate
 (venv) $ export FLASK_ENV=development
 (venv) $ export FLASK_RUN_HOST=localhost
 (venv) $ export FLASK_RUN_PORT=8000
-(venv) $ flask run
+(venv) $ python3 -m flask run
 ```
 
 - Or you can use Makefile instead (it will automatically run all 5 lines above)
@@ -103,6 +103,22 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 *You can find more specific function descriptions in each file. Check the output files after running to confirm the format if you need to read again or use some functions in helper.py file*
 
+## Virtual Environment Tutorial
+
+*If the virtual environment attached is not working, you can create your own*
+
+```python
+(venv) $ mkdir my_virtual_environment
+(venv) $ cd my_virtual_environment
+(venv) $ python3 -m venv venv
+(venv) $ cd ..
+(venv) $ source my_virtual_environment/venv/bin/activate
+(venv) $ pip install --upgrade pip
+(venv) $ pip install flask
+(venv) $ pip install flask-wtf
+(venv) $ pip install nltk
+(venv) $ pip install BeautifulSoup4
+```
 
 ## Demo
 

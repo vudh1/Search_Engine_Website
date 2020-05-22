@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import time
 import json
 import sys
@@ -35,7 +37,7 @@ def search_ui(query,term_line_relationship):
 	try:
 		query_results = search(config,query,term_line_relationship)
 	except Exception:
-		return query, query_ids_results, 0
+		return config, query, query_ids_results, 0
 
 	time_end =time.process_time()
 	time_process = round((time_end-time_start)*1000)

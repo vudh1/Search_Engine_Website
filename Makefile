@@ -4,5 +4,5 @@ export FLASK_RUN_HOST=localhost
 export FLASK_RUN_PORT=8000
 
 run:
-	flask run
+	python3 -m flask run
 
