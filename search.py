@@ -1,86 +1,82 @@
 import os
 import sys
-import re
+import pickle
+from pickle import UnpicklingError
 
-from helper import analyze_text
-from helper import get_query_postings
+from collections import defaultdict
+from collections import OrderedDict
+from helper import search_term_posting_in_index
+from ranking import ranking
+
+cache = defaultdict(lambda : False)
+
+# get terms - postings from inverted index list according to query terms and sort by freqs
+def get_query_postings(config,query_terms,term_line_relationship):
+	global cache
+
+	query_postings = defaultdict(lambda : False)
+
+	for term in query_terms:
+		# term not exist in cache
+		if cache[term] == False:
+			resource_term_posting = search_term_posting_in_index(config,term,term_line_relationship)
+			if resource_term_posting is None:
+				print("There is no term ",term,"in the indexer file")
+				query_postings = None
+				return
+			else:
+				query_postings[term] = resource_term_posting[term]
+
+		# term exists in cache
+		else:
+			query_postings[term] = cache[term][0]
+
+	return query_postings
+
+# sort terms - postings (helper function) by increasing frequency
+def sort_query_order(query_postings):
+	tot_freqs = dict()
+
+	for term, posting in query_postings.items():
+		tot_freq = 0
+
+		for doc_id, entry in posting.items():
+			tot_freq += entry.get_freq()
+
+		# tot_freq = sum([entry.get_freq() for entry in list(query_postings.values())])
+
+		tot_freqs[term] = tot_freq
+
+	sorted_tot_freqs = sorted(tot_freqs.items(), key=lambda kv: kv[1])
+
+	sorted_query_terms = list(OrderedDict(sorted_tot_freqs).keys())
+
+	return sorted_query_terms
 
 
-# return just doc_ids list from the given posting of a term
-
-def get_doc_ids_list(posting):
-	doc_pos = dict()
-
-	for entry in posting:
-		doc_pos[entry["doc_id"]] = entry["positions"]
-
-	return doc_pos
-
-
-# return a tf_idf_score of the given doc_id and given posting of a term
-
-def find_tf_idf_score(posting,doc_id):
-	for entry in posting:
-		if entry['doc_id'] == doc_id:
-			return entry['tf_idf']
-
-	return 0
-
-
-# return the positions that the 2 terms appear next to each other
-
-def intersection_positions(positions_a,positions_b,gap):
-	x = set(positions_a)
-
-	y = set()
-
-	for i in positions_b:
-		y.add(i-gap)
-
-	return list(x.intersection(y))
-
-# return the intersection list of docs-positions of 2 terms
-
-def intersection_docs_positions(doc_pos_a,doc_pos_b,gap):
-	intersection_doc_pos = dict()
-
-	for doc_a,pos_a in doc_pos_a.items():
-		if doc_a in list(doc_pos_b.keys()):
-			pos_b = doc_pos_b[doc_a]
-			intersection_pos = intersection_positions(pos_a,pos_b,gap)
-
-			if len(intersection_pos) > 0:
-				intersection_doc_pos[doc_a] = intersection_pos
-
-	return intersection_doc_pos
-
-
-# return the intersection list using boolean retrieval AND
-
-def boolean_retrieval(query_postings):
+# return the intersection list using boolean retrieval AND without positions
+def boolean_retrieval_without_positions(query_postings):
 	if len(query_postings) == 0:
 		return None
 
-	intersection_doc_pos = get_doc_ids_list(query_postings[0]["posting"])
+	sorted_query_terms = sort_query_order(query_postings)
+	#sort_query_postings(query_postings)
+	intersection_docs = set((query_postings[sorted_query_terms[0]]).keys())
 
-	gap = 1
+	for i in range(1,len(sorted_query_terms)):
+		intersection_docs = intersection_docs.intersection(set((query_postings[sorted_query_terms[i]]).keys()))
+		if intersection_docs is None:
+			return None
+		if len(intersection_docs) == 0:
+			return None
 
-	for i in range(len(query_postings)):
-		if i+1 < len(query_postings):
-			next_doc_pos = get_doc_ids_list(query_postings[i+1]["posting"])
-			intersection_doc_pos = intersection_docs_positions(intersection_doc_pos,next_doc_pos,i+1)
-
-	if len(intersection_doc_pos) > 0:
-		return intersection_doc_pos
-
-	return None
+	return list(intersection_docs)
 
 
 # main search function: currently still use boolean retrieval AND
 # return the query result as a dictionary of doc_id and its score
 
-def search(config, query,term_line_relationship):
-	query_terms = analyze_text(query)
+def search(config, query_terms,term_line_relationship):
 	if len(query_terms) == 0:
 		return None
 
@@ -89,33 +85,36 @@ def search(config, query,term_line_relationship):
 	if query_postings is None:
 		return None
 
+	# for term,posting in query_postings.items():
+	# 	print(term, end = ": ")
+	# 	for doc_id, entry in posting.items():
+	# 		print(doc_id, end = ",")
+
+	# 	print("")
+
 	query_doc_ids = []
 
 	if len(query_terms) == 1:
-		posting = query_postings[0]["posting"]
-		for entry in posting:
-			query_doc_ids.append(entry["doc_id"])
+		posting = query_postings[query_terms[0]]
+		query_doc_ids = list(posting.keys())
 	else:
-		intersection_doc_pos = boolean_retrieval(query_postings)
-		if intersection_doc_pos is None:
+		#### this version is with positions
+		# intersection_doc_pos = boolean_retrieval_with_position(query_postings)
+		# if intersection_doc_pos is None:
+		# 	return None
+		# query_doc_ids = list(intersection_doc_pos.keys())
+
+		#### this version is without positions
+		intersection_docs = boolean_retrieval_without_positions(query_postings)
+
+		if intersection_docs is None:
 			return None
-		query_doc_ids = list(intersection_doc_pos.keys())
 
-	if len(query_doc_ids) == 0:
-		return None
+		query_doc_ids = list(intersection_docs)
 
-	query_doc_score = dict()
+	# print("\nresult: ")
+	# print(query_doc_ids)
 
-	for doc_id in query_doc_ids:
-		score = 0
-
-		for query_posting in query_postings:
-			score += find_tf_idf_score(query_posting["posting"],doc_id)
-
-		query_doc_score[doc_id] = score
-
-	reverse_sorted_query_doc_score = sorted(query_doc_score.items(), key = lambda kv:(kv[1], kv[0]),reverse = True)
-
-	query_result = dict(reverse_sorted_query_doc_score)
+	query_result = ranking(config,query_doc_ids,query_postings)
 
 	return query_result

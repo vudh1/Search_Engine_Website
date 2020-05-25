@@ -1,150 +1,173 @@
-#!/usr/bin/python3
+# #!/usr/bin/python3
 
-import time
-import json
-import sys
-import logging
-from time import sleep
-from flask import Flask, render_template, url_for, flash, redirect, request
-from forms import QueryTerm
+# import time
+# import sys
+# import logging
+# from time import sleep
+# from flask import Flask, render_template, url_for, flash, redirect, request
+# from forms import QueryTerm
 
-from search import search
-from indexer import indexer
+# from search import search
+# from indexer import indexer
 
-from helper import get_configurations
-from helper import query_prepare
+# from helper import get_configurations
+# from helper import query_prepare
+# from helper import analyze_text
+# from helper import update_query_cache
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = '012345678998765433210'
-log = logging.getLogger('werkzeug')
-log.disabled = True
-# app.logger.disabled = True
+# app = Flask(__name__)
+# app.config['SECRET_KEY'] = '012345678998765433210'
+# log = logging.getLogger('werkzeug')
+# log.disabled = True
+# # app.logger.disabled = True
 
-#################################################################################################################################
+# config = get_configurations()
 
-print()
+# #################################################################################################################################
 
-def search_ui(query,term_line_relationship):
-	config = get_configurations()
+# def search_ui(query,query_terms,term_line_relationship):
+# 	global config
 
-	if config is None:
-		print("No config file. Exit now")
-		sys.exit()
+# 	if config is None:
+# 		print("No config file. Exit now")
+# 		sys.exit()
 
-	time_start = time.process_time()
-	query_ids_results = []
+# 	time_start = time.process_time()
+# 	query_ids_results = []
 
-	try:
-		query_results = search(config,query,term_line_relationship)
-	except Exception:
-		return config, query, query_ids_results, 0
+# 	try:
+# 		query_results = search(config,query_terms,term_line_relationship)
+# 	except Exception:
+# 		return config, query, query_ids_results, 0
 
-	time_end =time.process_time()
-	time_process = round((time_end-time_start)*1000)
-
-
-	if query_results is not None:
-		query_ids_results = list(query_results.keys())
-
-	# print(query_ids_results)
-	return config,query,query_ids_results,time_process
+# 	time_end = time.process_time()
+# 	time_process = round((time_end-time_start)*(10**3))
 
 
+# 	if query_results is not None:
+# 		query_ids_results = list(query_results.keys())
 
-#################################################################################################################################
+# 	# print(query_ids_results)
+# 	return config,query,query_ids_results,time_process
 
-@app.route("/",methods = ['GET', 'POST'])
-@app.route("/home",methods = ['GET', 'POST'])
-def home():
-	doc_ids,term_line_relationship = query_prepare()
 
-	num_documents = 0
-	num_terms = 0
 
-	if doc_ids is not None:
-		num_documents = len(doc_ids)
+# #################################################################################################################################
 
-	if term_line_relationship is not None:
-		num_terms = len(term_line_relationship)
+# doc_ids = dict()
+# term_line_relationship = dict()
+# query_terms = []
 
-	form = QueryTerm()
-	if form.validate_on_submit():
-		config, query,query_ids_results,query_time = search_ui(str(form.query_terms.data), term_line_relationship)
+# @app.route("/",methods = ['GET', 'POST'])
+# @app.route("/home",methods = ['GET', 'POST'])
+# def home():
+# 	global doc_ids
+# 	global term_line_relationship
+# 	global query_terms
 
-		num_result_urls = len(query_ids_results)
+# 	doc_ids,term_line_relationship = query_prepare()
 
-		doc_name_results = []
+# 	num_documents = 0
+# 	num_terms = 0
 
-		for i in range(num_result_urls):
-			if i < int(config.max_num_urls_per_query):
-				doc_name_results.append(doc_ids[str(query_ids_results[i])])
+# 	if doc_ids is not None:
+# 		num_documents = len(doc_ids)
 
-		messages = json.dumps({"query" : query, "doc_name_results": doc_name_results, "query_time" : query_time, "num_result_urls" : num_result_urls})
+# 	if term_line_relationship is not None:
+# 		num_terms = len(term_line_relationship)
 
-		return redirect(url_for('result', messages = messages))
-	return render_template('home.html', title ='Home', num_documents = num_documents, num_terms = num_terms, form = form)
+# 	form = QueryTerm()
 
-@app.route("/about")
-def about():
-	return render_template('about.html', title='About')
+# 	if form.validate_on_submit():
+# 		query = str(form.query_terms.data)
 
-@app.route("/update")
-def update():
-	config = get_configurations()
+# 		query_terms = analyze_text(query)
 
-	if config is None:
-		print("No config file. Exit now")
-		sys.exit()
+# 		config, query,query_ids_results,query_time = search_ui(query, query_terms, term_line_relationship)
 
-	time_start = time.process_time()
+# 		num_result_urls = len(query_ids_results)
 
-	extra_num_documents = indexer(config)
+# 		doc_name_results = []
 
-	time_end = time.process_time()
+# 		for i in range(num_result_urls):
+# 			if i < int(config.max_num_urls_per_query):
+# 				doc_name_results.append(doc_ids[str(query_ids_results[i])])
 
-	indexer_time = round(time_end - time_start)
+# 		messages = json.dumps({"query" : query,"doc_name_results": doc_name_results, "query_time" : query_time, "num_result_urls" : num_result_urls})
 
-	doc_ids,term_line_relationship = query_prepare()
+# 		return redirect(url_for('result', messages = messages))
+# 	return render_template('home.html', title ='Home', num_documents = num_documents, num_terms = num_terms, form = form)
 
-	num_terms = 0
+# @app.route("/about")
+# def about():
+# 	return render_template('about.html', title='About')
 
-	if term_line_relationship is not None:
-		num_terms = len(term_line_relationship)
+# @app.route("/update")
+# def update():
+# 	global config
 
-	num_documents = 0
+# 	if config is None:
+# 		print("No config file. Exit now")
+# 		sys.exit()
 
-	if doc_ids is not None:
-		num_documents = len(doc_ids)
+# 	time_start = time.process_time()
 
-	return render_template('update.html', title ='Update', indexer_time = indexer_time, extra_num_documents = extra_num_documents, num_documents = num_documents, num_terms = num_terms)
+# 	extra_num_documents = indexer(config)
 
-@app.route("/result")
-def result():
-	messages = json.loads(request.args['messages'])
-	return render_template('result.html', title='Result', query = messages["query"],
-					 doc_name_results = messages["doc_name_results"], length = messages["num_result_urls"] , query_time = messages["query_time"])
+# 	time_end = time.process_time()
 
-def initial_indexer():
+# 	indexer_time = (time_end - time_start)
 
-	config = get_configurations()
+# 	doc_ids,term_line_relationship = query_prepare()
 
-	if config is None:
-		print("No config file. Exit now")
-		sys.exit()
+# 	num_terms = 0
 
-	print("\nIndexing document ...")
-	time_start = time.process_time()
+# 	if term_line_relationship is not None:
+# 		num_terms = len(term_line_relationship)
 
-	num_documents = indexer(config)
-	if num_documents == 0:
-		print("No files to index. Exit now")
+# 	num_documents = 0
 
-	time_end = time.process_time()
+# 	if doc_ids is not None:
+# 		num_documents = len(doc_ids)
 
-	print("Complete indexing",num_documents, "documents in", (time_end - time_start),"s\n")
+# 	return render_template('update.html', title ='Update', indexer_time = indexer_time, extra_num_documents = extra_num_documents, num_documents = num_documents, num_terms = num_terms)
 
-	print("WebUI is ready to use ... \n")
+# @app.route("/result")
+# def result():
+# 	global config
 
-if __name__ == '__main__':
-	initial_indexer()
+# 	if config is None:
+# 		print("No config file. Exit now")
+# 		sys.exit()
+
+# 	messages = json.loads(request.args['messages'])
+
+# 	update_query_cache(config,query_terms,term_line_relationship)
+
+# 	return render_template('result.html', title='Result', query = messages["query"],
+# 					 doc_name_results = messages["doc_name_results"], length = messages["num_result_urls"] , query_time = messages["query_time"])
+
+
+# def initial_indexer():
+# 	global config
+
+# 	if config is None:
+# 		print("No config file. Exit now")
+# 		sys.exit()
+
+# 	print("\nIndexing document ...")
+# 	time_start = time.process_time()
+
+# 	num_documents = indexer(config)
+# 	if num_documents == 0:
+# 		print("No files to index. Exit now")
+
+# 	time_end = time.process_time()
+
+# 	print("Complete indexing",num_documents, "documents in", (time_end - time_start),"s\n")
+
+# 	print("WebUI is ready to use ... \n")
+
+# if __name__ == '__main__':
+# 	initial_indexer()
 
