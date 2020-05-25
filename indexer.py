@@ -279,7 +279,7 @@ def indexer(config):
 	# write to disk the last time
 	if len(total_tokens) > 0:
 		partial_indexer(config)
-		print("----> Complete Reading Last " + str(num_documents % config.max_documents_per_batch)+" files...")
+		print("----> Complete Reading " + str(num_documents)+" files...")
 
 
 # main inverted index function
