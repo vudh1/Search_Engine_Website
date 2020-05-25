@@ -103,6 +103,53 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 *You can find more specific function descriptions in each file. Check the output files after running to confirm the format if you need to read again or use some functions in helper.py file*
 
+## Output Files
+
+*Since the output files are binary files, this gives you a look at the data structures of each files*
+
+- output/doc_ids.bin
+```python
+# dictionary with key is doc_id, value is doc_name
+{ doc_id : doc_name }
+```
+
+- output/index.bin
+```python
+# Each line is a dictionary with the key is the term, and the posting is a dictionary of doc_id and its entry.
+# Use line offset to read the posting of each term
+# posting = { doc_id : entry }
+{ term1 : posting1 }
+{ term2 : posting2 }
+{ term3 : posting3 }
+
+```
+
+- output/term_line_relationships.bin
+```python
+# a dictionary with key is term, value is the line_offset of that term and its posting in index.bin
+{ term : line_offset}
+```
+
+- output/query_cache.bin
+```python
+# a dictionary with maximum MAX_QUERY_CACHE_ENTRIES elements;
+# key is term, value is the list/pair of 2 elements, posting and the count as the times that term is queried
+{ term : [posting, count]}
+```
+
+- output/partial_index/[0-N]
+
+*All the partial index files and folder will be auto deleted after merging*
+```python
+# Each line is a partial_posting which is dictionary
+# key is the doc_id, and the value is entry of that doc_id of a term
+# partial_posting = { doc_id : entry }
+{ partial_posting1 }
+{ partial_posting2 }
+{ partial_posting3 }
+
+```
+
 ## Virtual Environment Tutorial
 
 *If the virtual environment attached is not working, you can create your own*
@@ -116,6 +163,7 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 (venv) $ pip install --upgrade pip
 (venv) $ pip install flask
 (venv) $ pip install flask-wtf
+(venv) $ pip install flask-sqlalchemy
 (venv) $ pip install nltk
 (venv) $ pip install BeautifulSoup4
 ```

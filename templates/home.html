@@ -30,7 +30,7 @@
 		</div>
 		<div class="border-top pt-3">
 			<small class="text-muted">
-				Want to update the inverted index list? It may take around 30 mins. <a class="ml-2" href="{{ url_for('update') }}"> Click to update </a>
+				Want to update the inverted index list? It may take around 30-40 mins. <a class="ml-2" href="{{ url_for('update') }}"> Click to update </a>
 			</small>
 		</div>
 	</div>
@@ -40,8 +40,8 @@
 			<h3>Statistics</h3>
 			<p class='text-muted'>Inverted Index Information
 				<ul class="list-group">
-					<li class="list-group-item list-group-item-light"> There are {{num_documents}} documents</li>
-					<li class="list-group-item list-group-item-light"> There are {{num_terms}} terms</li>
+					<li class="list-group-item list-group-item-light"> Documents: {{num_documents}} files</li>
+					<li class="list-group-item list-group-item-light"> Terms: {{num_terms}} terms</li>
 				</ul>
 			</p>
 		</div>

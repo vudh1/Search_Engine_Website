@@ -30,7 +30,7 @@ def analyze_text(text):
 
 
 # read doc_id.json for doc_id and name of the files
-# used by: helper, console_launch
+# used by: helper, console_launch, web_launch
 def read_doc_ids_file(config):
 	if(os.path.exists(config.doc_id_file_name) is True):
 		with open(config.doc_id_file_name, 'rb') as f:
@@ -41,16 +41,16 @@ def read_doc_ids_file(config):
 
 
 # read term_line_relationships.bin for the line number of each term in index.bin for faster retrieval
-# used by: helper, console_launch
+# used by: helper, console_launch, web_launch
 def read_term_line_relationship_file(config):
 	if(os.path.exists(config.term_line_relationship_file_name) is True):
 		with open(config.term_line_relationship_file_name, 'rb') as f:
-			# try:
-			term_line_relationship = pickle.load(f)
-			return term_line_relationship
+			try:
+				term_line_relationship = pickle.load(f)
+				return term_line_relationship
 
-			# except (EOFError, UnpicklingError):
-			# 	return None
+			except (EOFError, UnpicklingError):
+			 	return None
 
 	return None
 
@@ -73,22 +73,22 @@ def read_previous_index_file(config):
 			with open(config.index_file_name, 'rb') as f:
 
 				for term, offset in term_line_relationship.items():
-					# try:
+					try:
 
-					if(os.path.exists(partial_folder_dir) is False):
-						os.mkdir(partial_folder_dir)
+						if(os.path.exists(partial_folder_dir) is False):
+							os.mkdir(partial_folder_dir)
 
-					f.seek(offset,0)
-					data = pickle.load(f)
+						f.seek(offset,0)
+						data = pickle.load(f)
 
-					term_ids[term] = num_terms
-					num_terms += 1
+						term_ids[term] = num_terms
+						num_terms += 1
 
-					with open(partial_folder_dir+str(term_ids[term]),'ab') as sub_f:
-						pickle.dump(data[term],sub_f)
+						with open(partial_folder_dir+str(term_ids[term]),'ab') as sub_f:
+							pickle.dump(data[term],sub_f)
 
-					# except (KeyError,EOFError, UnpicklingError):
-					# 	continue
+					except (KeyError,EOFError, UnpicklingError):
+						continue
 			return term_ids, num_terms
 
 	return term_ids, 0
@@ -148,13 +148,13 @@ def search_term_posting_at_specific_line(config,line_offset):
 	if(os.path.exists(config.index_file_name) is True):
 		with open(config.index_file_name, 'rb') as f:
 			f.seek(line_offset,0)
-			# try:
-			data = pickle.load(f)
-			term = list(data.keys())[0]
-			resource_term_posting[term] = data[term]
+			try:
+				data = pickle.load(f)
+				term = list(data.keys())[0]
+				resource_term_posting[term] = data[term]
 
-			# except (EOFError, UnpicklingError):
-			# 		return resource_term_posting
+			except (EOFError, UnpicklingError):
+			 		return resource_term_posting
 	return resource_term_posting
 
 
@@ -177,12 +177,12 @@ def read_cache_file(config):
 
 	if os.path.exists(config.query_cache_file_name) is True:
 		with open(config.query_cache_file_name, 'rb') as f:
-				# try:
-				data = pickle.load(f)
-				for term, posting_and_count in data.items():
-					cache[term] = data[posting_and_count]
-				# except (EOFError, UnpicklingError):
-				# 	return cache
+				try:
+					data = pickle.load(f)
+					for term, posting_and_count in data.items():
+						cache[term] = tuple([posting_and_count[0],posting_and_count[1]])
+				except (EOFError, UnpicklingError):
+					return cache
 	return cache
 
 # update query_cache
@@ -196,11 +196,13 @@ def update_query_cache(config,query_terms,term_line_relationship):
 			resource_term_posting = search_term_posting_in_index(config, term,term_line_relationship)
 
 			if resource_term_posting is not None:
-				cache[term] = [resource_term_posting[term],1]
+				cache[term] = tuple([resource_term_posting[term],1])
+			else:
+				return
 
 		#term exist in cache
 		else:
-			cache[term][1] += 1
+			cache[term] = tuple([cache[term][0],cache[term][1] + 1])
 
 	if len(cache) > 1:
 		sorted_cache = sorted(cache.items(), key=lambda kv: kv[1][1])

@@ -173,10 +173,10 @@ def merge_partial_index(config):
 
 	f.close()
 
-	# try:
-	# 	shutil.rmtree(config.output_folder_name + config.partial_index_folder_name)
-	# except OSError as e:
-	# 	print("Error Delete: %s : %s" % (dir_path, e.strerror))
+	try:
+		shutil.rmtree(config.output_folder_name + config.partial_index_folder_name)
+	except OSError as e:
+		print("Error Delete: %s : %s" % (dir_path, e.strerror))
 
 # write doc ids file
 
@@ -266,6 +266,7 @@ def indexer(config):
 
 							# print(num_documents)
 
+							# offload to partial index per batch
 							if num_documents % config.max_documents_per_batch == 0:
 								print("----> Complete Reading " + str(num_documents)+" files...")
 								# write to disk partial indexes
@@ -279,6 +280,7 @@ def indexer(config):
 	if len(total_tokens) > 0:
 		partial_indexer(config)
 		print("----> Complete Reading Last " + str(num_documents % config.max_documents_per_batch)+" files...")
+
 
 # main inverted index function
 

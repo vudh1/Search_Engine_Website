@@ -10,6 +10,7 @@ from helper import read_doc_ids_file
 from helper import read_term_line_relationship_file
 from helper import analyze_text
 from helper import print_query_doc_name
+from helper import update_query_cache
 
 #################################################################################################################################
 
@@ -70,18 +71,17 @@ def query_search(config):
 
 		time_start = time.process_time()
 
-		# try:
-		query_terms = analyze_text(query)
-		query_result = search(config, query_terms,term_line_relationship)
-		update_query_cache(config,query_terms,term_line_relationship)
-		# except Exception:
-		# 	print("there is some error with the query: ", query,". Please try different query")
-		# 	continue
-
+		try:
+			query_terms = analyze_text(query)
+			query_result = search(config, query_terms,term_line_relationship)
+		except Exception:
+			print("there is some error with the query: ", query,". Please try different query")
+			continue
 		time_end = time.process_time()
 
 		print_query_doc_name(config,query,doc_ids,query_result,(time_end-time_start)*1000)
 
+		update_query_cache(config,query_terms,term_line_relationship)
 	sys.exit()
 
 #################################################################################################################################

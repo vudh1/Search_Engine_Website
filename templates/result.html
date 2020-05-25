@@ -42,9 +42,24 @@
 
     <article class="media content-section">
       <div class="media-body">
-        {% for name in doc_name_results%}
+        {% for name in result_urls.items%}
         <p class="article-content"><a href = "{{name}}">{{ name }}</a></p>
         {% endfor %}
+
+        {% for page_num in result_urls.iter_pages() %}
+        {% if page_num %}
+        {% if result_urls.page == page_num%}
+        <a class="btn btn-info btn-sm" href = "{{ url_for('result', page = page_num) }}"> {{ page_num }}</a>
+        {% else %}
+        <a class="btn btn-outline-info btn-sm" href = "{{ url_for('result', page = page_num) }}"> {{ page_num }}</a>
+        {% endif %}
+
+        {% else %}
+        ...
+        {% endif %}
+        {% endfor %}
+
+
       </div>
     </article>
   </main>
