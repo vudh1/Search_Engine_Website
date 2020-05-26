@@ -11,22 +11,22 @@ from collections import OrderedDict
 from collections import defaultdict
 
 # read the configurations (file names, values, etc.)
-# used by: console_launch
+# used by: console_launch, web_launch
 def get_configurations():
 	# read the configurations (file names, values, etc.)
 	config = read_config_file("config.ini")
 	return config
 
 
-# tokenize and stemming the text
-# used by: indexer, console_launch, web_lau
-def analyze_text(text):
+# tokenize and stemming the query
+# used by: console_launch, web_launch
+def get_terms_from_query(query):
 	regex = re.compile('[^a-z0-9A-Z]')
-	text = regex.sub(' ', text).lower()
+	query = regex.sub(' ', query).lower()
 	stemmer = PorterStemmer()
 
-	terms = [stemmer.stem(i) for i in text.split() if len(i) >= 2]
-	return terms
+	query_terms = [stemmer.stem(i) for i in query.split() if len(i) >= 2]
+	return query_terms
 
 
 # read doc_id.json for doc_id and name of the files
@@ -53,70 +53,6 @@ def read_term_line_relationship_file(config):
 			 	return None
 
 	return None
-
-
-# read previous index file
-# used by: helper
-def read_previous_index_file(config):
-	total_tokens = OrderedDict()
-	partial_folder_dir = config.output_folder_name + config.partial_index_folder_name
-
-	term_ids = defaultdict(lambda : False)
-
-	num_terms = 0
-
-	if(os.path.exists(config.index_file_name) is True):
-		term_line_relationship = read_term_line_relationship_file(config)
-
-		if term_line_relationship is not None:
-
-			with open(config.index_file_name, 'rb') as f:
-
-				for term, offset in term_line_relationship.items():
-					try:
-
-						if(os.path.exists(partial_folder_dir) is False):
-							os.mkdir(partial_folder_dir)
-
-						f.seek(offset,0)
-						data = pickle.load(f)
-
-						term_ids[term] = num_terms
-						num_terms += 1
-
-						with open(partial_folder_dir+str(term_ids[term]),'ab') as sub_f:
-							pickle.dump(data[term],sub_f)
-
-					except (KeyError,EOFError, UnpicklingError):
-						continue
-			return term_ids, num_terms
-
-	return term_ids, 0
-
-
-# read existing files to avoid re-read same documents
-# used by: indexer
-def read_existing_files(config):
-	# store doc_ids in memory for fast retrieval (since doc_ids_file is supposed to need small memory space)
-
-	doc_ids = dict()
-	num_documents = 0
-	num_terms = 0
-	term_ids = defaultdict(lambda : False)
-
-	if(os.path.exists(config.output_folder_name) is False):
-		return doc_ids,num_documents,term_ids,num_terms
-
-	doc_ids = read_doc_ids_file(config)
-
-	if doc_ids is None:
-		return dict(),num_documents,term_ids,num_terms
-
-	num_documents = len(doc_ids)
-
-	term_ids, num_terms = read_previous_index_file(config)
-
-	return doc_ids,num_documents,term_ids,num_terms
 
 
 #print query result to console output
@@ -214,3 +150,105 @@ def update_query_cache(config,query_terms,term_line_relationship):
 
 	with open(config.query_cache_file_name, 'wb') as f:
 		pickle.dump(sorted_cache_result,f)
+
+
+# generate permutations for near duplicate check
+# used by: indexer
+def generate_permutations_for_sim_hash(sim_hash_result):
+	block_1 = sim_hash_result[:11]
+	block_2 = sim_hash_result[11:22]
+	block_3 = sim_hash_result[22:33]
+	block_4 = sim_hash_result[33:44]
+	block_5 = sim_hash_result[44:54]
+	block_6 = sim_hash_result[54:]
+
+	p = []
+
+	p.append([block_4 + block_5 + block_6 , block_1 + block_2 + block_3 ])
+	p.append([block_3 + block_4 + block_6 , block_1 + block_2 + block_5 ])
+	p.append([block_1 + block_3 + block_6 , block_2 + block_4 + block_5 ])
+	p.append([block_1 + block_4 + block_5 , block_2 + block_3 + block_6 ])
+	p.append([block_2 + block_3 + block_4 , block_1 + block_5 + block_6 ])
+	p.append([block_3 + block_5 + block_6 , block_1 + block_2 + block_4 ])
+	p.append([block_2 + block_4 + block_6 , block_1 + block_3 + block_5 ])
+	p.append([block_1 + block_2 + block_6 , block_3 + block_4 + block_5 ])
+	p.append([block_2 + block_3 + block_5 , block_1 + block_4 + block_6 ])
+	p.append([block_1 + block_3 + block_4 , block_2 + block_5 + block_6 ])
+	p.append([block_2 + block_5 + block_6 , block_1 + block_3 + block_4 ])
+	p.append([block_1 + block_4 + block_6 , block_2 + block_3 + block_5 ])
+	p.append([block_3 + block_4 + block_5 , block_1 + block_2 + block_6 ])
+	p.append([block_1 + block_3 + block_5 , block_2 + block_4 + block_6 ])
+	p.append([block_1 + block_2 + block_4 , block_3 + block_5 + block_6 ])
+	p.append([block_1 + block_5 + block_6 , block_2 + block_3 + block_4 ])
+	p.append([block_2 + block_3 + block_6 , block_1 + block_4 + block_5 ])
+	p.append([block_2 + block_4 + block_5 , block_1 + block_3 + block_6 ])
+	p.append([block_1 + block_2 + block_5 , block_3 + block_4 + block_6 ])
+	p.append([block_1 + block_2 + block_3 , block_4 + block_5 + block_6 ])
+
+	return p
+
+
+
+# # read previous index file
+# # used by: helper
+# def read_previous_index_file(config):
+# 	total_tokens = OrderedDict()
+# 	partial_folder_dir = config.output_folder_name + config.partial_index_folder_name
+
+# 	term_ids = defaultdict(lambda : False)
+
+# 	num_terms = 0
+
+# 	if(os.path.exists(config.index_file_name) is True):
+# 		term_line_relationship = read_term_line_relationship_file(config)
+
+# 		if term_line_relationship is not None:
+
+# 			with open(config.index_file_name, 'rb') as f:
+
+# 				for term, offset in term_line_relationship.items():
+# 					try:
+
+# 						if(os.path.exists(partial_folder_dir) is False):
+# 							os.mkdir(partial_folder_dir)
+
+# 						f.seek(offset,0)
+# 						data = pickle.load(f)
+
+# 						term_ids[term] = num_terms
+# 						num_terms += 1
+
+# 						with open(partial_folder_dir+str(term_ids[term]),'ab') as sub_f:
+# 							pickle.dump(data[term],sub_f)
+
+# 					except (KeyError,EOFError, UnpicklingError):
+# 						continue
+# 			return term_ids, num_terms
+
+# 	return term_ids, 0
+
+
+# # read existing files to avoid re-read same documents
+# # used by: indexer
+# def read_existing_files(config):
+# 	# store doc_ids in memory for fast retrieval (since doc_ids_file is supposed to need small memory space)
+
+# 	doc_ids = dict()
+# 	num_documents = 0
+# 	num_terms = 0
+# 	term_ids = defaultdict(lambda : False)
+
+# 	if(os.path.exists(config.output_folder_name) is False):
+# 		return doc_ids,num_documents,term_ids,num_terms
+
+# 	doc_ids = read_doc_ids_file(config)
+
+# 	if doc_ids is None:
+# 		return dict(),num_documents,term_ids,num_terms
+
+# 	num_documents = len(doc_ids)
+
+# 	term_ids, num_terms = read_previous_index_file(config)
+
+# 	return doc_ids,num_documents,term_ids,num_terms
+

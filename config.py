@@ -34,6 +34,10 @@ class Config(object):
 		# the number of documents per batch
 		self.max_documents_per_batch = int(config["NUMBERS"]["MAX_DOCUMENTS_PER_BATCH"])
 
+		# the number of different bits in sim hash
+		self.threshold_sim_hash_value  = int(config["NUMBERS"]["THRESHOLD_SIM_HASH_VALUE"])
+
+
 def read_config_file(config_file):
 	cparser = ConfigParser()
 	cparser.read(config_file)

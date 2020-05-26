@@ -8,7 +8,7 @@ from search import search
 from helper import get_configurations
 from helper import read_doc_ids_file
 from helper import read_term_line_relationship_file
-from helper import analyze_text
+from helper import get_terms_from_query
 from helper import print_query_doc_name
 from helper import update_query_cache
 
@@ -72,7 +72,7 @@ def query_search(config):
 		time_start = time.process_time()
 
 		try:
-			query_terms = analyze_text(query)
+			query_terms = get_terms_from_query(query)
 			query_result = search(config, query_terms,term_line_relationship)
 		except Exception:
 			print("there is some error with the query: ", query,". Please try different query")

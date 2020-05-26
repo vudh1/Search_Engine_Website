@@ -77,6 +77,9 @@ def boolean_retrieval_without_positions(query_postings):
 # return the query result as a dictionary of doc_id and its score
 
 def search(config, query_terms,term_line_relationship):
+	query_terms = list(OrderedDict.fromkeys(query_terms))
+
+	print(query_terms)
 	if len(query_terms) == 0:
 		return None
 

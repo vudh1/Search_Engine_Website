@@ -13,7 +13,7 @@ from search import search
 from indexer import inverted_index
 
 from helper import get_configurations
-from helper import analyze_text
+from helper import get_terms_from_query
 from helper import update_query_cache
 from helper import read_doc_ids_file
 from helper import read_term_line_relationship_file
@@ -137,7 +137,7 @@ def home():
 	if form.validate_on_submit():
 		query = str(form.query_terms.data)
 
-		query_terms = analyze_text(query)
+		query_terms = get_terms_from_query(query)
 
 		query_ids_results,query_time = search_ui()
 
