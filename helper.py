@@ -1,14 +1,16 @@
-import os
+import os, sys, re, pickle
+
 from nltk.stem.porter import *
-
-import pickle
 from pickle import UnpicklingError
-
-import re
-from config import read_config_file
-
 from collections import OrderedDict
 from collections import defaultdict
+
+from config import read_config_file
+
+
+# from itertools import combinations
+# block_indexes = [0,1,2,3,4,5]
+# right_combinations = combinations(block_indexes, 3)
 
 # read the configurations (file names, values, etc.)
 # used by: console_launch, web_launch
@@ -67,7 +69,7 @@ def print_query_doc_name(config,query,doc_ids,query_result,time):
 
 		for i in range(len(query_ids)):
 			if i < int(config.max_num_urls_per_query):
-				print(doc_ids[query_ids[i]])
+				print(doc_ids[query_ids[i]][0], ": ",doc_ids[query_ids[i]][1])
 			else:
 				break
 	else:
@@ -140,6 +142,8 @@ def update_query_cache(config,query_terms,term_line_relationship):
 		else:
 			cache[term] = tuple([cache[term][0],cache[term][1] + 1])
 
+	sorted_cache = dict()
+
 	if len(cache) > 1:
 		sorted_cache = sorted(cache.items(), key=lambda kv: kv[1][1])
 
@@ -154,7 +158,7 @@ def update_query_cache(config,query_terms,term_line_relationship):
 
 # generate permutations for near duplicate check
 # used by: indexer
-def generate_permutations_for_sim_hash(sim_hash_result):
+def generate_permutations_for_sim_hash(config, sim_hash_result):
 	block_1 = sim_hash_result[:11]
 	block_2 = sim_hash_result[11:22]
 	block_3 = sim_hash_result[22:33]
@@ -187,68 +191,35 @@ def generate_permutations_for_sim_hash(sim_hash_result):
 
 	return p
 
+	# global block_indexes
+	# global right_combinations
 
+	# blocks = []
+	# blocks.append(sim_hash_result[:11])
+	# blocks.append(sim_hash_result[11:22])
+	# blocks.append(sim_hash_result[22:33])
+	# blocks.append(sim_hash_result[33:44])
+	# blocks.append(sim_hash_result[44:54])
+	# blocks.append(sim_hash_result[54:])
 
-# # read previous index file
-# # used by: helper
-# def read_previous_index_file(config):
-# 	total_tokens = OrderedDict()
-# 	partial_folder_dir = config.output_folder_name + config.partial_index_folder_name
+	# right_combinations = combinations(block_indexes, config.threshold_sim_hash_value)
 
-# 	term_ids = defaultdict(lambda : False)
+	# p = []
 
-# 	num_terms = 0
+	# for right_indexes in right_combinations:
+	# 	left_indexes = list(set(block_indexes) - set(right_indexes))
 
-# 	if(os.path.exists(config.index_file_name) is True):
-# 		term_line_relationship = read_term_line_relationship_file(config)
+	# 	left_blocks = []
+	# 	right_blocks = []
 
-# 		if term_line_relationship is not None:
+	# 	for i in left_indexes:
+	# 		left_blocks += blocks[i]
 
-# 			with open(config.index_file_name, 'rb') as f:
+	# 	for i in right_indexes:
+	# 		right_blocks += blocks[i]
 
-# 				for term, offset in term_line_relationship.items():
-# 					try:
+	# 	p.append([left_blocks,right_blocks])
 
-# 						if(os.path.exists(partial_folder_dir) is False):
-# 							os.mkdir(partial_folder_dir)
+	# return p
 
-# 						f.seek(offset,0)
-# 						data = pickle.load(f)
-
-# 						term_ids[term] = num_terms
-# 						num_terms += 1
-
-# 						with open(partial_folder_dir+str(term_ids[term]),'ab') as sub_f:
-# 							pickle.dump(data[term],sub_f)
-
-# 					except (KeyError,EOFError, UnpicklingError):
-# 						continue
-# 			return term_ids, num_terms
-
-# 	return term_ids, 0
-
-
-# # read existing files to avoid re-read same documents
-# # used by: indexer
-# def read_existing_files(config):
-# 	# store doc_ids in memory for fast retrieval (since doc_ids_file is supposed to need small memory space)
-
-# 	doc_ids = dict()
-# 	num_documents = 0
-# 	num_terms = 0
-# 	term_ids = defaultdict(lambda : False)
-
-# 	if(os.path.exists(config.output_folder_name) is False):
-# 		return doc_ids,num_documents,term_ids,num_terms
-
-# 	doc_ids = read_doc_ids_file(config)
-
-# 	if doc_ids is None:
-# 		return dict(),num_documents,term_ids,num_terms
-
-# 	num_documents = len(doc_ids)
-
-# 	term_ids, num_terms = read_previous_index_file(config)
-
-# 	return doc_ids,num_documents,term_ids,num_terms
 

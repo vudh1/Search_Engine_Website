@@ -1,12 +1,5 @@
-import os
-import sys
-import re
-import math
-import json
-import pickle
-import bs4
-import shutil
-import warnings
+import os, sys, re, math, json, pickle, bs4, shutil, warnings
+
 from nltk.stem.porter import *
 from pickle import UnpicklingError
 from collections import OrderedDict
@@ -26,9 +19,9 @@ num_terms = 0
 
 doc_ids = dict()
 
-doc_names = defaultdict(lambda : False)
+doc_urls = defaultdict(lambda : False)
 
-total_tokens = OrderedDict()
+total_tokens = defaultdict(lambda : False)
 
 term_ids = defaultdict(lambda : False)
 
@@ -123,7 +116,7 @@ def check_near_duplicate(config, terms):
 
 	sim_hash_result = sim_hash(terms)
 
-	permutations = generate_permutations_for_sim_hash(sim_hash_result)
+	permutations = generate_permutations_for_sim_hash(config, sim_hash_result)
 
 	is_near_duplicate = hamming_distance(config, permutations)
 
@@ -133,7 +126,7 @@ def check_near_duplicate(config, terms):
 #############################################################################################
 
 # analyze text for duplicate and get terms
-def analyze_text(config, text,doc_id,doc_name):
+def analyze_text(config, text,doc_id):
 	global term_hash_bits
 	global exact_duplicate_hash
 
@@ -230,12 +223,12 @@ def compute_tf_idf_scores_for_a_posting(posting):
 
 
 # compute entry posting from the text and add to new list
-def add_to_list(config,text,doc_id,doc_name):
+def add_to_list(config,text,doc_id):
 	global num_documents
 	global total_tokens
 	global exact_duplicate_hash
 
-	terms = analyze_text(config, text, doc_id,doc_name)
+	terms = analyze_text(config, text, doc_id)
 
 	if terms is None:
 		return False
@@ -246,9 +239,7 @@ def add_to_list(config,text,doc_id,doc_name):
 	positions, frequencies, tf_scores = compute_posting_value(terms)
 
 	for token in positions:
-		token_in_total_tokens = total_tokens.get(token,False)
-
-		if token_in_total_tokens == False:
+		if total_tokens[token] == False:
 			total_tokens[token] = dict()
 
 		entry = Entry(frequencies[token], tf_scores[token], 0, positions[token])
@@ -258,25 +249,6 @@ def add_to_list(config,text,doc_id,doc_name):
 
 	return True
 
-
-# update doc_names by doc_ids
-
-def update_doc_names():
-	global doc_ids
-	global doc_names
-
-	if doc_ids is None:
-		return
-
-	for index,name in doc_ids.items():
-		doc_names[name] = index
-
-def update_term_line_relationship():
-	global term_ids
-	global term_line_relationship
-
-	for term, partial_index_id in term_ids.items():
-		term_line_relationship[term] = -1
 
 # merge all entries in a term file
 # sort entries in posting by frequency
@@ -384,12 +356,36 @@ def print_total_tokens():
 	print("Num_total_tokens: ",len(total_tokens))
 
 
+def smart_truncate(config, content):
+	suffix = '...'
+	length = config.max_length_for_title
+	if len(content) <= length:
+		return content
+	else:
+		return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
+
+# get doc_title
+def set_doc_title(config,soup, doc_url):
+	if soup.find('title') is None:
+		return doc_url
+	else:
+		doc_title = ''
+
+		if soup.title.string is not None:
+			doc_title = soup.title.string.strip().lstrip()
+
+		if len(doc_title) == 0:
+			return doc_url
+
+		return smart_truncate(config, doc_title)
+
+
 # create index in partial files
 def indexer(config):
 	global num_documents
 	global total_tokens
 	global doc_ids
-	global doc_names
+	global doc_urls
 	global exact_duplicate_hash
 	global term_hash_bits
 	global tables
@@ -405,16 +401,18 @@ def indexer(config):
 					# try:
 						data = json.load(jf)
 						soup = bs4.BeautifulSoup(data["content"], 'html.parser')
-						doc_name = str(data["url"]).split("#",1)[0]
+						doc_url = str(data["url"]).split("#",1)[0]
+
+						doc_title = set_doc_title(config,soup, doc_url)
 
 						# avoid duplicate file names
-						if doc_names[doc_name] == False:
-							doc_ids[doc_id] = doc_name
-							doc_names[doc_name] = doc_id
+						if doc_urls[doc_url] == False:
+							doc_ids[doc_id] = [doc_title,doc_url]
+							doc_urls[doc_url] = doc_id
 
 							text = ' '.join(filter(tag, soup.find_all(text=True)))
 
-							is_sucess = add_to_list(config,text,doc_id,doc_name)
+							is_sucess = add_to_list(config,text,doc_id)
 
 							if is_sucess == True: # no duplicate
 								doc_id += 1

@@ -25,6 +25,9 @@ class Config(object):
 		# query_cache file : this file stores previously queried terms_to_postings and count (num times queried)
 		self.query_cache_file_name = self.output_folder_name + config["FILE_NAME"]["QUERY_CACHE_FILE_NAME"]
 
+		# result database file to store the result of query
+		self.result_database_file_name = 'sqlite:///' +  self.output_folder_name + config["FILE_NAME"]["RESULT_DATABASE_FILENAME"]
+
 		# the number of urls printed to console after query
 		self.max_num_urls_per_query = int(config["NUMBERS"]["MAX_NUM_URLS_PER_QUERY"])
 
@@ -37,6 +40,8 @@ class Config(object):
 		# the number of different bits in sim hash
 		self.threshold_sim_hash_value  = int(config["NUMBERS"]["THRESHOLD_SIM_HASH_VALUE"])
 
+		# max length for title
+		self.max_length_for_title = int(config["NUMBERS"]["MAX_LENGTH_FOR_TITLE"])
 
 def read_config_file(config_file):
 	cparser = ConfigParser()

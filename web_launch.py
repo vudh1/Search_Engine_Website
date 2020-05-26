@@ -1,26 +1,32 @@
 # #!/usr/bin/python3
-
-import time
-import sys
-import logging
-import json
+import os, sys, time, logging
 from flask import Flask, render_template, url_for, flash, redirect, request
 from flask_sqlalchemy import SQLAlchemy
+from collections import defaultdict
 
 from forms import QueryTerm
-
 from search import search
 from indexer import inverted_index
-
 from helper import get_configurations
 from helper import get_terms_from_query
+from helper import read_cache_file
 from helper import update_query_cache
 from helper import read_doc_ids_file
 from helper import read_term_line_relationship_file
 
+
+config = get_configurations()
+
+if config is None:
+	print("No config file. Exit now")
+	sys.exit()
+
+if(os.path.exists(config.output_folder_name) is False):
+	os.mkdir(config.output_folder_name)
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '012345678998765433210'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///result.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = config.result_database_file_name
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -31,16 +37,16 @@ log.disabled = True
 # app.logger.disabled = True
 
 
-class UrlResult(db.Model):
+class QueryResult(db.Model):
 	id = db.Column(db.Integer, primary_key = True)
 	url = db.Column(db.String(120), nullable = False)
-
+	title = db.Column(db.String(120), nullable = False)
 	def __repr__(self):
-		return str(self.url)
+		return str(self.title)
 
 # #################################################################################################################################
 
-config = get_configurations()
+
 
 doc_ids = dict()
 term_line_relationship = dict()
@@ -51,7 +57,11 @@ query = ""
 query_terms = []
 
 query_time = 0
-num_result_urls = 0
+num_result = 0
+
+query_ids_results = []
+
+cache = defaultdict(lambda : False)
 
 # #################################################################################################################################
 
@@ -60,39 +70,36 @@ def search_ui():
 	global query
 	global query_terms
 	global term_line_relationships
-
-	if config is None:
-		print("No config file. Exit now")
-		sys.exit()
+	global cache
+	global query_ids_results
+	global query_time
 
 	time_start = time.process_time()
-	query_ids_results = []
 
 	try:
-		query_results = search(config,query_terms,term_line_relationship)
+		query_results = search(config,query_terms,term_line_relationship, cache)
 	except Exception:
 		return query_ids_results, 0
 
 	time_end = time.process_time()
-	time_process = round((time_end-time_start)*(10**3))
+
+	query_time = round((time_end-time_start)*(10**3),2)
 
 	if query_results is not None:
 		query_ids_results = list(query_results.keys())
 
-	# print(query_ids_results)
-	return query_ids_results,time_process
 
-
-def update_database(query_ids_results):
+def update_database():
 	global config
 	global db
+	global query_ids_results
 
 	db.drop_all()
 
 	db.create_all()
 
 	for i in range(len(query_ids_results)):
-		db.session.add(UrlResult(url = doc_ids[query_ids_results[i]]))
+		db.session.add(QueryResult(title = doc_ids[query_ids_results[i]][0],url = doc_ids[query_ids_results[i]][1]))
 
 	db.session.commit()
 
@@ -103,6 +110,7 @@ def update_statistics():
 	global term_line_relationship
 	global num_documents
 	global num_terms
+	global cache
 
 	doc_ids = read_doc_ids_file(config)
 
@@ -118,17 +126,17 @@ def update_statistics():
 
 	num_terms = len(term_line_relationship)
 
+	cache = read_cache_file(config)
+
 # #################################################################################################################################
 
 @app.route("/",methods = ['GET', 'POST'])
 @app.route("/home",methods = ['GET', 'POST'])
 def home():
-	global config
 	global query
 	global query_terms
-	global term_line_relationship
 	global query_time
-	global num_result_urls
+	global num_result
 
 	update_statistics()
 
@@ -139,13 +147,8 @@ def home():
 
 		query_terms = get_terms_from_query(query)
 
-		query_ids_results,query_time = search_ui()
+		search_ui()
 
-		update_query_cache(config,query_terms,term_line_relationship)
-
-		num_result_urls = len(query_ids_results)
-
-		update_database(query_ids_results)
 
 		return redirect(url_for('result'))
 	return render_template('home.html', title ='Home', num_documents = num_documents, num_terms = num_terms, form = form)
@@ -163,10 +166,6 @@ def update():
 	global term_line_relationship
 	global doc_ids
 
-	if config is None:
-		print("No config file. Exit now")
-		sys.exit()
-
 	time_start = time.process_time()
 
 	num_documents, num_terms = inverted_index(config)
@@ -176,7 +175,7 @@ def update():
 
 	time_end = time.process_time()
 
-	indexer_time = (time_end - time_start)
+	indexer_time = round((time_end - time_start),2)
 
 	update_statistics()
 
@@ -188,29 +187,26 @@ def result():
 	global config
 	global query
 	global query_time
-	global num_result_urls
+	global num_result
+	global query_ids_results
 
-	if config is None:
-		print("No config file. Exit now")
-		sys.exit()
+	num_result = len(query_ids_results)
+
+	update_database()
 
 	page = request.args.get('page', 1, type = int)
-	result_urls = UrlResult.query.paginate(page = page, per_page = config.max_num_urls_per_query)
 
+	result_info = QueryResult.query.paginate(page = page, per_page = config.max_num_urls_per_query)
 
 	update_query_cache(config,query_terms,term_line_relationship)
 
 	return render_template('result.html', title='Result', query = query,
-					 result_urls = result_urls, length = num_result_urls , query_time = query_time)
+					 result_info = result_info, length = num_result , query_time = query_time)
 
 # #################################################################################################################################
 
 def initial_indexer():
 	global config
-
-	if config is None:
-		print("No config file. Exit now")
-		sys.exit()
 
 	print("\nIndexing document ...")
 	time_start = time.process_time()

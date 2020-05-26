@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
-import sys
-import time
+import sys, os, time
 
 from indexer import inverted_index
 from search import search
@@ -69,11 +68,13 @@ def query_search(config):
 				loop = False
 				continue
 
+		cache = read_cache_file(config)
+
 		time_start = time.process_time()
 
 		try:
 			query_terms = get_terms_from_query(query)
-			query_result = search(config, query_terms,term_line_relationship)
+			query_result = search(config, query_terms,term_line_relationship, cache)
 		except Exception:
 			print("there is some error with the query: ", query,". Please try different query")
 			continue

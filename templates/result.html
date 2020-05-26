@@ -38,17 +38,17 @@
     </nav>
   </header>
   <main role="main" class="container">
-    <p> About {{length}} results ({{query_time}} miliseconds)</p>
+    <p> About {{length}} results for '{{query}}' ({{query_time}} miliseconds)</p>
 
     <article class="media content-section">
       <div class="media-body">
-        {% for name in result_urls.items%}
-        <p class="article-content"><a href = "{{name}}">{{ name }}</a></p>
+        {% for resp in result_info.items%}
+        <p class="article-content"><a href = "{{resp.url}}">{{ resp.title }}</a></p>
         {% endfor %}
 
-        {% for page_num in result_urls.iter_pages() %}
+        {% for page_num in result_info.iter_pages() %}
         {% if page_num %}
-        {% if result_urls.page == page_num%}
+        {% if result_info.page == page_num%}
         <a class="btn btn-info btn-sm" href = "{{ url_for('result', page = page_num) }}"> {{ page_num }}</a>
         {% else %}
         <a class="btn btn-outline-info btn-sm" href = "{{ url_for('result', page = page_num) }}"> {{ page_num }}</a>
