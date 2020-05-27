@@ -1,19 +1,19 @@
 # #!/usr/bin/python3
-import os, sys, time, logging
+import os, sys, time, logging, pickle
 from flask import Flask, render_template, url_for, flash, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from collections import defaultdict
-
+from threading import Thread
+from pickle import UnpicklingError
 from forms import QueryTerm
 from search import search
 from indexer import inverted_index
 from helper import get_configurations
 from helper import get_terms_from_query
-from helper import read_cache_file
 from helper import update_query_cache
 from helper import read_doc_ids_file
 from helper import read_term_line_relationship_file
-
+from helper import read_strong_index_file
 
 config = get_configurations()
 
@@ -23,6 +23,7 @@ if config is None:
 
 if(os.path.exists(config.output_folder_name) is False):
 	os.mkdir(config.output_folder_name)
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '012345678998765433210'
@@ -47,17 +48,18 @@ class QueryResult(db.Model):
 # #################################################################################################################################
 
 
-
 doc_ids = dict()
 term_line_relationship = dict()
+strong_index = dict()
+
 num_documents = 0
 num_terms = 0
 
 query = ""
 query_terms = []
 
-query_time = 0
-num_result = 0
+time_start = 0
+time_end = 0
 
 query_ids_results = []
 
@@ -69,24 +71,18 @@ def search_ui():
 	global config
 	global query
 	global query_terms
-	global term_line_relationships
+	global term_line_relationship
 	global cache
 	global query_ids_results
-	global query_time
+	global doc_ids
+	global strong_index
 
-	time_start = time.process_time()
+	# try:
+	query_terms = get_terms_from_query(query)
 
-	try:
-		query_results = search(config,query_terms,term_line_relationship, cache)
-	except Exception:
-		return query_ids_results, 0
-
-	time_end = time.process_time()
-
-	query_time = round((time_end-time_start)*(10**3),2)
-
-	if query_results is not None:
-		query_ids_results = list(query_results.keys())
+	query_ids_results = search(config, query_terms, doc_ids,term_line_relationship, cache, strong_index)
+	# except Exception:
+		# query_ids_results = []
 
 
 def update_database():
@@ -111,6 +107,7 @@ def update_statistics():
 	global num_documents
 	global num_terms
 	global cache
+	global strong_index
 
 	doc_ids = read_doc_ids_file(config)
 
@@ -119,6 +116,11 @@ def update_statistics():
 
 	num_documents = len(doc_ids)
 
+	strong_index = read_strong_index_file(config)
+
+	if strong_index is None:
+		strong_index = dict()
+
 	term_line_relationship = read_term_line_relationship_file(config)
 
 	if term_line_relationship is None:
@@ -126,29 +128,26 @@ def update_statistics():
 
 	num_terms = len(term_line_relationship)
 
-	cache = read_cache_file(config)
-
 # #################################################################################################################################
 
 @app.route("/",methods = ['GET', 'POST'])
 @app.route("/home",methods = ['GET', 'POST'])
 def home():
 	global query
-	global query_terms
-	global query_time
-	global num_result
-
-	update_statistics()
+	global time_start
+	global time_end
+	global config
 
 	form = QueryTerm()
 
 	if form.validate_on_submit():
-		query = str(form.query_terms.data)
+		time_start = time.process_time()
 
-		query_terms = get_terms_from_query(query)
+		query = str(form.query.data)
 
 		search_ui()
 
+		time_end = time.process_time()
 
 		return redirect(url_for('result'))
 	return render_template('home.html', title ='Home', num_documents = num_documents, num_terms = num_terms, form = form)
@@ -160,11 +159,8 @@ def about():
 @app.route("/update")
 def update():
 	global config
-	global query
 	global num_documents
 	global num_terms
-	global term_line_relationship
-	global doc_ids
 
 	time_start = time.process_time()
 
@@ -181,27 +177,24 @@ def update():
 
 	return render_template('update.html', title ='Update', indexer_time = indexer_time, num_documents = num_documents, num_terms = num_terms)
 
-
 @app.route("/result")
 def result():
 	global config
 	global query
-	global query_time
-	global num_result
+	global time_start
+	global time_end
 	global query_ids_results
-
-	num_result = len(query_ids_results)
 
 	update_database()
 
 	page = request.args.get('page', 1, type = int)
 
-	result_info = QueryResult.query.paginate(page = page, per_page = config.max_num_urls_per_query)
+	result_info = QueryResult.query.paginate(page = page, per_page = config.max_num_urls_per_page)
 
-	update_query_cache(config,query_terms,term_line_relationship)
+	query_time = round((time_end-time_start)*(10**3),2)
 
 	return render_template('result.html', title='Result', query = query,
-					 result_info = result_info, length = num_result , query_time = query_time)
+					 result_info = result_info, length = len(query_ids_results) , query_time = query_time)
 
 # #################################################################################################################################
 
@@ -220,10 +213,14 @@ def initial_indexer():
 
 	print("Complete indexing",num_documents, "documents in", (time_end - time_start),"s\n")
 
+	update_statistics()
+
 	print("WebUI is ready to use ... \n")
 
 
 # #################################################################################################################################
+
+update_statistics()
 
 if __name__ == '__main__':
 	initial_indexer()

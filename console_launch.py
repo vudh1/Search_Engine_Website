@@ -10,6 +10,8 @@ from helper import read_term_line_relationship_file
 from helper import get_terms_from_query
 from helper import print_query_doc_name
 from helper import update_query_cache
+from helper import read_cache_file
+from helper import read_strong_index_file
 
 #################################################################################################################################
 
@@ -17,7 +19,6 @@ from helper import update_query_cache
 def index(config):
 	# M1: inverted index
 
-	print("Indexing document ...")
 	time_start = time.process_time()
 
 	num_documents, num_terms = inverted_index(config)
@@ -44,6 +45,14 @@ def query_search(config):
 	print("Complete reading doc_ids file\n")
 
 
+	print("Reading strong_index file ... ")
+
+	strong_index = read_strong_index_file(config)
+	if strong_index is None:
+		print("strong_index file is empty or does not exist. Exit now")
+		sys.exit()
+	print("Complete reading strong_index file\n")
+
 	# store term_line_relationship for fast retrieval (since term_line_relationship file is supposed to need small memory space)
 
 	print("Reading term_line_relationship file ... ")
@@ -53,7 +62,6 @@ def query_search(config):
 		print("term_line_relationship file is empty or does not exist. Exit now")
 		sys.exit()
 	print("Complete reading term_line_relationship file\n")
-
 
 	# M2: query search . for now still using boolean retrieval AND
 
@@ -74,7 +82,7 @@ def query_search(config):
 
 		try:
 			query_terms = get_terms_from_query(query)
-			query_result = search(config, query_terms,term_line_relationship, cache)
+			query_result = search(config, query_terms, doc_ids,term_line_relationship, cache, strong_index)
 		except Exception:
 			print("there is some error with the query: ", query,". Please try different query")
 			continue

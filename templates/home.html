@@ -10,16 +10,16 @@
 				<fieldset class="form-group">
 					<legend class="border-bottom mb-4">Query Search</legend>
 					<div class="form-group">
-						{{ form.query_terms.label(class="form-control-label") }}
-						{% if form.query_terms.errors %}
-						{{ form.query_terms(class="form-control form-control-lg is-invalid") }}
+						{{ form.query.label(class="form-control-label") }}
+						{% if form.query.errors %}
+						{{ form.query(class="form-control form-control-lg is-invalid") }}
 						<div class="invalid-feedback">
-							{% for error in form.query_terms.errors %}
+							{% for error in form.query.errors %}
 							<span>{{ error }}</span>
 							{% endfor %}
 						</div>
 						{% else %}
-						{{ form.query_terms(class="form-control form-control-lg") }}
+						{{ form.query(class="form-control form-control-lg") }}
 						{% endif %}
 					</div>
 				</fieldset>

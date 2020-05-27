@@ -31,7 +31,7 @@ def get_terms_from_query(query):
 	return query_terms
 
 
-# read doc_id.json for doc_id and name of the files
+# read doc_id.bin for doc_id and name of the files
 # used by: helper, console_launch, web_launch
 def read_doc_ids_file(config):
 	if(os.path.exists(config.doc_id_file_name) is True):
@@ -41,6 +41,15 @@ def read_doc_ids_file(config):
 			return doc_ids
 	return dict()
 
+# read strong_index.bin for strong index and its doc_id of the files
+# used by: helper, console_launch, web_launch
+def read_strong_index_file(config):
+	if(os.path.exists(config.strong_index_file_name) is True):
+		with open(config.strong_index_file_name, 'rb') as f:
+			strong_index = pickle.load(f)
+
+			return strong_index
+	return dict()
 
 # read term_line_relationships.bin for the line number of each term in index.bin for faster retrieval
 # used by: helper, console_launch, web_launch
@@ -53,7 +62,6 @@ def read_term_line_relationship_file(config):
 
 			except (EOFError, UnpicklingError):
 			 	return None
-
 	return None
 
 
@@ -147,7 +155,7 @@ def update_query_cache(config,query_terms,term_line_relationship):
 	if len(cache) > 1:
 		sorted_cache = sorted(cache.items(), key=lambda kv: kv[1][1])
 
-	while len(sorted_cache) > config.max_num_query_cache_entries:
+	while len(sorted_cache) > config.max_num_query_cache_terms:
 		sorted_cache.pop(0)
 
 	sorted_cache_result = dict(sorted_cache)

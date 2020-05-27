@@ -5,6 +5,7 @@ from pickle import UnpicklingError
 from collections import OrderedDict
 from collections import defaultdict
 
+from helper import get_terms_from_query
 from helper import generate_permutations_for_sim_hash
 from entry import Entry
 
@@ -21,7 +22,11 @@ doc_ids = dict()
 
 doc_urls = defaultdict(lambda : False)
 
+document_lengths = defaultdict(lambda : False)
+
 total_tokens = defaultdict(lambda : False)
+
+strong_index = dict()
 
 term_ids = defaultdict(lambda : False)
 
@@ -255,6 +260,7 @@ def add_to_list(config,text,doc_id):
 
 def get_merge_entries_of_a_term(config,term):
 	global term_ids
+	global document_lengths
 
 	term_file_name = config.output_folder_name + config.partial_index_folder_name + str(term_ids[term])
 
@@ -270,13 +276,26 @@ def get_merge_entries_of_a_term(config,term):
 
 	posting = compute_tf_idf_scores_for_a_posting(posting)
 
-	#sort entries in posting by frequency
-	# posting = dict(sorted(posting.items(), key=lambda x: x[1].get_freq(), reverse=True))
+	# get tf_idf scores
+
+	for doc_id,entry in posting.items():
+		if document_lengths[doc_id] == False:
+			document_lengths[doc_id] = 0
+		document_lengths[doc_id] += (entry.get_tf_idf()**2)
 
 	os.remove(term_file_name)
 
 	return posting
 
+
+def update_normalized_document_lengths_after_merge():
+	global document_lengths
+	global doc_ids
+
+	for doc_id,length in document_lengths.items():
+		doc_ids[doc_id][2] = math.sqrt(length)
+
+	document_lengths.clear()
 
 # merge all files in alphabetic order
 
@@ -306,21 +325,6 @@ def merge_partial_index(config):
 		print("Error Delete Folder.")
 
 
-# write doc ids file
-def write_doc_ids_file(config):
-	with open(config.doc_id_file_name, 'wb') as f:
-		pickle.dump(doc_ids, f)
-
-
-# write term line relationship file
-def write_term_line_relationship_file(config):
-	global term_line_relationship
-
-	if(os.path.exists(config.index_file_name) is True):
-		with open(config.term_line_relationship_file_name, 'wb') as f:
-			pickle.dump(term_line_relationship, f)
-
-
 # write to partial index
 def partial_indexer(config):
 	global total_tokens
@@ -340,6 +344,33 @@ def partial_indexer(config):
 	total_tokens.clear()
 
 
+# write doc ids file
+def write_doc_ids_file(config):
+	update_normalized_document_lengths_after_merge()
+
+	with open(config.doc_id_file_name, 'wb') as f:
+		pickle.dump(doc_ids, f)
+
+	doc_ids.clear()
+
+def write_strong_index_file(config):
+	global strong_index
+	with open(config.strong_index_file_name, 'wb') as f:
+		pickle.dump(strong_index, f)
+
+	strong_index.clear()
+
+
+# write term line relationship file
+def write_term_line_relationship_file(config):
+	global term_line_relationship
+
+	if(os.path.exists(config.index_file_name) is True):
+		with open(config.term_line_relationship_file_name, 'wb') as f:
+			pickle.dump(term_line_relationship, f)
+
+	term_line_relationship.clear()
+
 # print total_tokens
 def print_total_tokens():
 	global total_tokens
@@ -348,8 +379,7 @@ def print_total_tokens():
 	for term,posting in total_tokens.items():
 		print(num,".",term,end = ": ")
 		for doc_id,entry in posting.items():
-			# print("   ",doc_id,entry.get_freq(),entry.get_tf(),entry.get_tf_idf(),entry.get_positions())
-			print(doc_id, end = ", ")
+			print("   ",doc_id,entry.get_freq(),entry.get_tf(),entry.get_tf_idf(),entry.get_positions())
 		print("")
 		num += 1
 
@@ -359,13 +389,21 @@ def print_total_tokens():
 def smart_truncate(config, content):
 	suffix = '...'
 	length = config.max_length_for_title
+	new_title = ''
+
 	if len(content) <= length:
-		return content
+		new_title = content
 	else:
-		return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
+		new_title = ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
+
+	title_terms = get_terms_from_query(new_title)
+
+	return new_title,title_terms
 
 # get doc_title
-def set_doc_title(config,soup, doc_url):
+def set_doc_title(config,soup,doc_id,doc_url):
+	global strong_index
+
 	if soup.find('title') is None:
 		return doc_url
 	else:
@@ -377,7 +415,15 @@ def set_doc_title(config,soup, doc_url):
 		if len(doc_title) == 0:
 			return doc_url
 
-		return smart_truncate(config, doc_title)
+		new_title, title_terms = smart_truncate(config, doc_title)
+
+		for title_term in title_terms:
+			if strong_index.get(title_term,False) == False:
+				strong_index[title_term] = dict()
+
+			strong_index[title_term][doc_id] = True
+
+		return new_title
 
 
 # create index in partial files
@@ -398,16 +444,16 @@ def indexer(config):
 			for f in files:
 				data = dict()
 				with open(root + '/' + dir + '/' + f) as jf:
-					# try:
+					try:
 						data = json.load(jf)
 						soup = bs4.BeautifulSoup(data["content"], 'html.parser')
 						doc_url = str(data["url"]).split("#",1)[0]
 
-						doc_title = set_doc_title(config,soup, doc_url)
-
-						# avoid duplicate file names
+						# avoid duplicate file url
 						if doc_urls[doc_url] == False:
-							doc_ids[doc_id] = [doc_title,doc_url]
+							doc_title = set_doc_title(config,soup,doc_id,doc_url)
+
+							doc_ids[doc_id] = [doc_title,doc_url,0]
 							doc_urls[doc_url] = doc_id
 
 							text = ' '.join(filter(tag, soup.find_all(text=True)))
@@ -427,8 +473,8 @@ def indexer(config):
 								# write to disk partial indexes
 								partial_indexer(config)
 
-					# except Exception:
-					# 	continue
+					except Exception:
+						continue
 				# break
 
 	# write to disk the last time
@@ -437,14 +483,26 @@ def indexer(config):
 		print("----> Complete Reading " + str(num_documents)+" files...")
 
 
-	# clear from memory
+	# clear from memory after done
 	exact_duplicate_hash.clear()
 	term_hash_bits.clear()
 	tables.clear()
 
-
 # clear all previous output
-def clear_output_folder(config):
+def clean_previous_data(config):
+	global num_documents
+	global num_terms
+	global doc_ids
+	global doc_urls
+	global document_lengths
+	global total_tokens
+	global strong_index
+	global term_ids
+	global term_line_relationship
+	global exact_duplicate_hash
+	global term_hash_bits
+	global tables
+
 	if(os.path.exists(config.output_folder_name) is True):
 		try:
 			shutil.rmtree(config.output_folder_name)
@@ -460,15 +518,30 @@ def clear_output_folder(config):
 	if(os.path.exists(partial_folder_dir) is False):
 		os.mkdir(partial_folder_dir)
 
+	num_documents = 0
+	num_terms = 0
+	doc_ids = dict()
+	doc_urls = defaultdict(lambda : False)
+	document_lengths = defaultdict(lambda : False)
+	total_tokens = defaultdict(lambda : False)
+	strong_index = dict()
+	term_ids = defaultdict(lambda : False)
+	term_line_relationship = OrderedDict()
+	exact_duplicate_hash = defaultdict(lambda : False)
+	term_hash_bits = defaultdict(lambda : False)
+	tables = [None] * 64
+
 
 # main inverted index function
 def inverted_index(config):
 	global num_documents
 	global num_terms
+	global term_ids
+	global doc_urls
 
-	clear_output_folder(config)
+	clean_previous_data(config)
 
-	print("----> Running indexer(config)....")
+	print("\n----> Running indexer(config)....")
 	# create partial index in files with file_name is term
 	indexer(config)
 
@@ -480,8 +553,16 @@ def inverted_index(config):
 	# write doc_ids dicionary to file
 	write_doc_ids_file(config)
 
+	print("----> Running write_strong_index_file(config)....")
+	# write strong_index dicionary to file
+	write_strong_index_file(config)
+
 	print("----> Running write_term_line_relationship_file(config)....")
 	# write term_line_relationship file
 	write_term_line_relationship_file(config)
 
+	print("----> Complete Running Indexer. Ready to Search....\n")
+
+	term_ids.clear()
+	doc_urls.clear()
 	return num_documents, num_terms

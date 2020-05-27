@@ -124,6 +124,12 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 ```
 
+- output/strong_index.bin
+```python
+# a dictionary with key as strong term and value is a dictionary of doc_id and boolean True
+{term : {doc_id : True}}
+```
+
 - output/term_line_relationships.bin
 ```python
 # a dictionary with key is term, value is the line_offset of that term and its posting in index.bin
