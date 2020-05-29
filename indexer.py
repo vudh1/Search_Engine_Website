@@ -2,11 +2,9 @@ import os, sys, re, math, json, pickle, bs4, shutil, warnings
 
 from nltk.stem.porter import *
 from pickle import UnpicklingError
-from collections import OrderedDict
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
-from helper import get_terms_from_query
-from helper import generate_permutations_for_sim_hash
+from helper import get_terms_from_query, generate_permutations_for_sim_hash
 from entry import Entry
 
 # disable showing warning when reading using bs4
@@ -20,21 +18,23 @@ num_terms = 0
 
 doc_ids = dict()
 
-doc_urls = defaultdict(lambda : False)
+doc_urls = defaultdict(bool)
 
-document_lengths = defaultdict(lambda : False)
+anchor_urls = defaultdict(bool)
 
-total_tokens = defaultdict(lambda : False)
+document_lengths = defaultdict(bool)
 
-strong_index = dict()
+total_tokens = defaultdict(bool)
 
-term_ids = defaultdict(lambda : False)
+strong_terms = dict()
+
+term_ids = defaultdict(bool)
 
 term_line_relationship = OrderedDict()
 
-exact_duplicate_hash = defaultdict(lambda : False)
+exact_duplicate_hash = defaultdict(bool)
 
-term_hash_bits = defaultdict(lambda : False)
+term_hash_bits = defaultdict(bool)
 
 tables = [None] * 64
 
@@ -49,9 +49,6 @@ def sim_hash(terms):
 	sim_hash_result = [0]*64
 
 	for term in terms:
-		# print("new simhash:",sim_hash_result)
-		# print(term,term_hash_bits[term])
-		# input()
 		for i in range(64):
 			value = term_hash_bits[term][i] * 2 - 1
 			sim_hash_result[i] += value
@@ -87,7 +84,7 @@ def hamming_distance(config,permutations):
 		left_bits = ''.join([str(i) for i in permutations[i][0]])
 
 		if tables[i] is None:
-			tables[i] = defaultdict(lambda : False)
+			tables[i] = defaultdict(bool)
 
 		if tables[i][left_bits] == False:
 			tables[i][left_bits] = []
@@ -226,12 +223,16 @@ def compute_tf_idf_scores_for_a_posting(posting):
 
 	return posting
 
+def check_for_link(url):
+    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    return re.match(regex, url) is not None
 
 # compute entry posting from the text and add to new list
-def add_to_list(config,text,doc_id):
+def add_to_list(config,text,doc_id, anchor_tags):
 	global num_documents
 	global total_tokens
 	global exact_duplicate_hash
+	global anchor_urls
 
 	terms = analyze_text(config, text, doc_id)
 
@@ -251,6 +252,16 @@ def add_to_list(config,text,doc_id):
 		total_tokens[token][doc_id] = entry
 
 	num_documents += 1
+
+	for a_tag in anchor_tags:
+		if check_for_link(a_tag['href']) == True:
+			anchor_url = a_tag['href']
+			anchor_content = str(a_tag.contents[0])
+
+			anchor_terms = get_terms_from_query(anchor_content)
+
+			if len(anchor_terms) != 0:
+				anchor_urls[anchor_url] = anchor_terms
 
 	return True
 
@@ -343,9 +354,30 @@ def partial_indexer(config):
 
 	total_tokens.clear()
 
+# write anchor_terms to file
+def write_anchor_terms_file(config):
+	global anchor_urls
+	global doc_urls
+
+	anchor_terms = defaultdict(list)
+
+	for url, terms in anchor_urls.items():
+		for term in terms:
+			if doc_urls[url] != False:
+				anchor_terms[term].append(doc_urls[url])
+
+	anchor_terms = dict(anchor_terms)
+
+	with open(config.anchor_terms_file_name,'wb') as f:
+			pickle.dump(anchor_terms,f)
+
+	anchor_urls.clear()
+	doc_urls.clear()
 
 # write doc ids file
 def write_doc_ids_file(config):
+	global doc_ids
+
 	update_normalized_document_lengths_after_merge()
 
 	with open(config.doc_id_file_name, 'wb') as f:
@@ -353,12 +385,15 @@ def write_doc_ids_file(config):
 
 	doc_ids.clear()
 
-def write_strong_index_file(config):
-	global strong_index
-	with open(config.strong_index_file_name, 'wb') as f:
-		pickle.dump(strong_index, f)
+def write_strong_terms_file(config):
+	global strong_terms
 
-	strong_index.clear()
+	strong_terms = dict(strong_terms)
+
+	with open(config.strong_terms_file_name, 'wb') as f:
+		pickle.dump(strong_terms, f)
+
+	strong_terms.clear()
 
 
 # write term line relationship file
@@ -371,21 +406,7 @@ def write_term_line_relationship_file(config):
 
 	term_line_relationship.clear()
 
-# print total_tokens
-def print_total_tokens():
-	global total_tokens
-	print("\n\n\n")
-	num = 0
-	for term,posting in total_tokens.items():
-		print(num,".",term,end = ": ")
-		for doc_id,entry in posting.items():
-			print("   ",doc_id,entry.get_freq(),entry.get_tf(),entry.get_tf_idf(),entry.get_positions())
-		print("")
-		num += 1
-
-	print("Num_total_tokens: ",len(total_tokens))
-
-
+# smart truncate for title
 def smart_truncate(config, content):
 	suffix = '...'
 	length = config.max_length_for_title
@@ -402,7 +423,7 @@ def smart_truncate(config, content):
 
 # get doc_title
 def set_doc_title(config,soup,doc_id,doc_url):
-	global strong_index
+	global strong_terms
 
 	if soup.find('title') is None:
 		return doc_url
@@ -418,13 +439,9 @@ def set_doc_title(config,soup,doc_id,doc_url):
 		new_title, title_terms = smart_truncate(config, doc_title)
 
 		for title_term in title_terms:
-			if strong_index.get(title_term,False) == False:
-				strong_index[title_term] = dict()
-
-			strong_index[title_term][doc_id] = True
+			strong_terms[title_term].append(doc_id)
 
 		return new_title
-
 
 # create index in partial files
 def indexer(config):
@@ -458,14 +475,14 @@ def indexer(config):
 
 							text = ' '.join(filter(tag, soup.find_all(text=True)))
 
-							is_sucess = add_to_list(config,text,doc_id)
+							anchor_tags = soup.find_all('a', href=True, text=True)
+
+							is_sucess = add_to_list(config,text,doc_id, anchor_tags)
 
 							if is_sucess == True: # no duplicate
 								doc_id += 1
 							else:
 								continue
-
-							# print(num_documents)
 
 							# offload to partial index per batch
 							if num_documents % config.max_documents_per_batch == 0:
@@ -475,7 +492,6 @@ def indexer(config):
 
 					except Exception:
 						continue
-				# break
 
 	# write to disk the last time
 	if len(total_tokens) > 0:
@@ -496,7 +512,7 @@ def clean_previous_data(config):
 	global doc_urls
 	global document_lengths
 	global total_tokens
-	global strong_index
+	global strong_terms
 	global term_ids
 	global term_line_relationship
 	global exact_duplicate_hash
@@ -521,14 +537,15 @@ def clean_previous_data(config):
 	num_documents = 0
 	num_terms = 0
 	doc_ids = dict()
-	doc_urls = defaultdict(lambda : False)
-	document_lengths = defaultdict(lambda : False)
-	total_tokens = defaultdict(lambda : False)
-	strong_index = dict()
-	term_ids = defaultdict(lambda : False)
+	doc_urls = defaultdict(bool)
+	document_lengths = defaultdict(bool)
+	total_tokens = defaultdict(bool)
+	strong_terms = defaultdict(list)
+	anchor_urls = defaultdict(bool)
+	term_ids = defaultdict(bool)
 	term_line_relationship = OrderedDict()
-	exact_duplicate_hash = defaultdict(lambda : False)
-	term_hash_bits = defaultdict(lambda : False)
+	exact_duplicate_hash = defaultdict(bool)
+	term_hash_bits = defaultdict(bool)
 	tables = [None] * 64
 
 
@@ -550,12 +567,16 @@ def inverted_index(config):
 	merge_partial_index(config)
 
 	print("----> Running write_doc_ids_file(config)....")
+	# write anchor terms dicionary to file
+	write_anchor_terms_file(config)
+
+	print("----> Running write_doc_ids_file(config)....")
 	# write doc_ids dicionary to file
 	write_doc_ids_file(config)
 
-	print("----> Running write_strong_index_file(config)....")
-	# write strong_index dicionary to file
-	write_strong_index_file(config)
+	print("----> Running write_strong_terms_file(config)....")
+	# write strong_terms dicionary to file
+	write_strong_terms_file(config)
 
 	print("----> Running write_term_line_relationship_file(config)....")
 	# write term_line_relationship file
@@ -564,5 +585,5 @@ def inverted_index(config):
 	print("----> Complete Running Indexer. Ready to Search....\n")
 
 	term_ids.clear()
-	doc_urls.clear()
+
 	return num_documents, num_terms

@@ -2,15 +2,12 @@ import os, sys, re, pickle
 
 from nltk.stem.porter import *
 from pickle import UnpicklingError
-from collections import OrderedDict
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 from config import read_config_file
 
+stem_stop_words = defaultdict(bool, {'about': True, 'abov': True, 'after': True, 'again': True, 'against': True, 'all': True, 'am': True, 'an': True, 'and': True, 'ani': True, 'are': True, 'aren': True, 'as': True, 'at': True, 'be': True, 'becaus': True, 'been': True, 'befor': True, 'below': True, 'between': True, 'both': True, 'but': True, 'by': True, 'can': True, 'cannot': True, 'could': True, 'couldn': True, 'did': True, 'didn': True, 'do': True, 'doe': True, 'doesn': True, 'don': True, 'down': True, 'dure': True, 'each': True, 'few': True, 'for': True, 'from': True, 'further': True, 'had': True, 'hadn': True, 'ha': True, 'hasn': True, 'have': True, 'haven': True, 'he': True, 'll': True, 'her': True, 'here': True, 'herself': True, 'him': True, 'himself': True, 'hi': True, 'how': True, 've': True, 'if': True, 'in': True, 'into': True, 'is': True, 'isn': True, 'it': True, 'itself': True, 'let': True, 'me': True, 'more': True, 'most': True, 'mustn': True, 'my': True, 'myself': True, 'no': True, 'nor': True, 'not': True, 'of': True, 'off': True, 'on': True, 'onc': True, 'onli': True, 'or': True, 'other': True, 'ought': True, 'our': True, 'ourselv': True, 'out': True, 'over': True, 'own': True, 'same': True, 'shan': True, 'she': True, 'should': True, 'shouldn': True, 'so': True, 'some': True, 'such': True, 'than': True, 'that': True, 'the': True, 'their': True, 'them': True, 'themselv': True, 'then': True, 'there': True, 'these': True, 'they': True, 're': True, 'thi': True, 'those': True, 'through': True, 'to': True, 'too': True, 'under': True, 'until': True, 'up': True, 'veri': True, 'wa': True, 'wasn': True, 'we': True, 'were': True, 'weren': True, 'what': True, 'when': True, 'where': True, 'which': True, 'while': True, 'who': True, 'whom': True, 'whi': True, 'with': True, 'won': True, 'would': True, 'wouldn': True, 'you': True, 'your': True, 'yourself': True, 'yourselv': True})
 
-# from itertools import combinations
-# block_indexes = [0,1,2,3,4,5]
-# right_combinations = combinations(block_indexes, 3)
 
 # read the configurations (file names, values, etc.)
 # used by: console_launch, web_launch
@@ -18,7 +15,6 @@ def get_configurations():
 	# read the configurations (file names, values, etc.)
 	config = read_config_file("config.ini")
 	return config
-
 
 # tokenize and stemming the query
 # used by: console_launch, web_launch
@@ -33,23 +29,33 @@ def get_terms_from_query(query):
 
 # read doc_id.bin for doc_id and name of the files
 # used by: helper, console_launch, web_launch
+def read_anchor_terms_file(config):
+	if(os.path.exists(config.anchor_terms_file_name) is True):
+		with open(config.anchor_terms_file_name, 'rb') as f:
+			anchor_terms = defaultdict(bool,dict(pickle.load(f)))
+
+			return anchor_terms
+	return defaultdict(bool)
+
+# read doc_id.bin for doc_id and name of the files
+# used by: helper, console_launch, web_launch
 def read_doc_ids_file(config):
 	if(os.path.exists(config.doc_id_file_name) is True):
 		with open(config.doc_id_file_name, 'rb') as f:
-			doc_ids = pickle.load(f)
+			doc_ids = defaultdict(bool,dict(pickle.load(f)))
 
 			return doc_ids
-	return dict()
+	return defaultdict(bool)
 
-# read strong_index.bin for strong index and its doc_id of the files
+# read strong_terms.bin for strong index and its doc_id of the files
 # used by: helper, console_launch, web_launch
-def read_strong_index_file(config):
-	if(os.path.exists(config.strong_index_file_name) is True):
-		with open(config.strong_index_file_name, 'rb') as f:
-			strong_index = pickle.load(f)
+def read_strong_terms_file(config):
+	if(os.path.exists(config.strong_terms_file_name) is True):
+		with open(config.strong_terms_file_name, 'rb') as f:
+			strong_terms = defaultdict(bool,pickle.load(f))
 
-			return strong_index
-	return dict()
+			return strong_terms
+	return defaultdict(bool)
 
 # read term_line_relationships.bin for the line number of each term in index.bin for faster retrieval
 # used by: helper, console_launch, web_launch
@@ -57,12 +63,12 @@ def read_term_line_relationship_file(config):
 	if(os.path.exists(config.term_line_relationship_file_name) is True):
 		with open(config.term_line_relationship_file_name, 'rb') as f:
 			try:
-				term_line_relationship = pickle.load(f)
+				term_line_relationship = defaultdict(bool,pickle.load(f))
 				return term_line_relationship
 
 			except (EOFError, UnpicklingError):
-			 	return None
-	return None
+			 	return defaultdict(bool)
+	return defaultdict(bool)
 
 
 #print query result to console output
@@ -73,11 +79,9 @@ def print_query_doc_name(config,query,doc_ids,query_result,time):
 	if query_result is not None:
 		print("Retrieved a total of " + str(len(query_result)) +  " documents of '" + str(query)+"' in "+str(time)+"ms.")
 
-		query_ids = list(query_result.keys())
-
-		for i in range(len(query_ids)):
-			if i < int(config.max_num_urls_per_query):
-				print(doc_ids[query_ids[i]][0], ": ",doc_ids[query_ids[i]][1])
+		for i in range(len(query_result)):
+			if i < int(config.max_num_urls_per_page):
+				print(doc_ids[query_result[i]][0], ": ",doc_ids[query_result[i]][1])
 			else:
 				break
 	else:
@@ -89,7 +93,7 @@ def print_query_doc_name(config,query,doc_ids,query_result,time):
 #directly read at a specific line in terms_to_postings.json for term_posting information without storing large data in memory
 #used by: helper
 def search_term_posting_at_specific_line(config,line_offset):
-	resource_term_posting = defaultdict(lambda : False)
+	resource_term_posting = defaultdict(bool)
 
 	if(os.path.exists(config.index_file_name) is True):
 		with open(config.index_file_name, 'rb') as f:
@@ -107,7 +111,7 @@ def search_term_posting_at_specific_line(config,line_offset):
 # get term - posting
 # used by: search, helper
 def search_term_posting_in_index(config, term, term_line_relationship):
-	line_offset = term_line_relationship.get(term,False)
+	line_offset = term_line_relationship[term]
 
 	if line_offset == False:
 		return None
@@ -119,7 +123,7 @@ def search_term_posting_in_index(config, term, term_line_relationship):
 #read cache file
 #used by: helper, search
 def read_cache_file(config):
-	cache = defaultdict(lambda : False)
+	cache = defaultdict(bool)
 
 	if os.path.exists(config.query_cache_file_name) is True:
 		with open(config.query_cache_file_name, 'rb') as f:
@@ -198,36 +202,4 @@ def generate_permutations_for_sim_hash(config, sim_hash_result):
 	p.append([block_1 + block_2 + block_3 , block_4 + block_5 + block_6 ])
 
 	return p
-
-	# global block_indexes
-	# global right_combinations
-
-	# blocks = []
-	# blocks.append(sim_hash_result[:11])
-	# blocks.append(sim_hash_result[11:22])
-	# blocks.append(sim_hash_result[22:33])
-	# blocks.append(sim_hash_result[33:44])
-	# blocks.append(sim_hash_result[44:54])
-	# blocks.append(sim_hash_result[54:])
-
-	# right_combinations = combinations(block_indexes, config.threshold_sim_hash_value)
-
-	# p = []
-
-	# for right_indexes in right_combinations:
-	# 	left_indexes = list(set(block_indexes) - set(right_indexes))
-
-	# 	left_blocks = []
-	# 	right_blocks = []
-
-	# 	for i in left_indexes:
-	# 		left_blocks += blocks[i]
-
-	# 	for i in right_indexes:
-	# 		right_blocks += blocks[i]
-
-	# 	p.append([left_blocks,right_blocks])
-
-	# return p
-
 

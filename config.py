@@ -19,9 +19,11 @@ class Config(object):
 		# index file : this is all inverted_index list
 		self.index_file_name = self.output_folder_name + config["FILE_NAME"]["INDEX_FILE_NAME"]
 
+		# anchor terms file : this is all anchor terms dictionary
+		self.anchor_terms_file_name = self.output_folder_name + config["FILE_NAME"]["ANCHOR_TERMS_FILE_NAME"]
 
-		# storng index file : this is has strong index list
-		self.strong_index_file_name = self.output_folder_name + config["FILE_NAME"]["STRONG_INDEX_FILE_NAME"]
+		# strong terms file : this is has strong index dictionary
+		self.strong_terms_file_name = self.output_folder_name + config["FILE_NAME"]["STRONG_TERMS_FILE_NAME"]
 
 		# term_line_relationship file: this file store the line number of the term which can be found in postings_file_name
 		self.term_line_relationship_file_name = self.output_folder_name + config["FILE_NAME"]["TERM_LINE_RELATIONSHIP_FILE_NAME"]
@@ -56,9 +58,20 @@ class Config(object):
 		# default score for boolean AND
 		self.default_score_boolean_and_position = float(config["NUMBERS"]["DEFAULT_SCORE_BOOLEAN_AND_POSITION"])
 
-		# default score for strong index (title, bold)
-		self.default_score_strong_index = float(config["NUMBERS"]["DEFAULT_SCORE_STRONG_INDEX"])
+		# default score for anchor text
+		self.default_score_anchor_text = float(config["NUMBERS"]["DEFAULT_SCORE_ANCHOR_TEXT"])
 
+		# default score for strong index (title, bold)
+		self.default_score_strong_terms = float(config["NUMBERS"]["DEFAULT_SCORE_STRONG_TERMS"])
+
+		# threshold for important terms
+		self.threshold_high_idf_terms = float(config["NUMBERS"]["THRESHOLD_HIGH_IDF_TERMS"])
+
+		# threshold for percent of terms in docs
+		self.threshold_percent_of_terms_in_docs = float(config["NUMBERS"]["THRESHOLD_PERCENT_OF_TERMS_IN_DOCS"])
+
+		# percent of threshold increasing until at least found 1 high idf terms
+		self.threshold_increase_percent = float(config["NUMBERS"]["THRESHOLD_INCREASE_PERCENT"])
 
 
 

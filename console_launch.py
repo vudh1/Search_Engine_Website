@@ -1,17 +1,10 @@
 #!/usr/bin/python3
 
 import sys, os, time
-
-from indexer import inverted_index
+from collections import defaultdict
 from search import search
-from helper import get_configurations
-from helper import read_doc_ids_file
-from helper import read_term_line_relationship_file
-from helper import get_terms_from_query
-from helper import print_query_doc_name
-from helper import update_query_cache
-from helper import read_cache_file
-from helper import read_strong_index_file
+from indexer import inverted_index
+from helper import get_configurations, get_terms_from_query, read_doc_ids_file, read_term_line_relationship_file, read_strong_terms_file,read_anchor_terms_file, print_query_doc_name
 
 #################################################################################################################################
 
@@ -22,6 +15,7 @@ def index(config):
 	time_start = time.process_time()
 
 	num_documents, num_terms = inverted_index(config)
+
 	if num_documents == 0:
 		print("No files to index. Exit now")
 		sys.exit()
@@ -34,34 +28,32 @@ def index(config):
 #################################################################################################################################
 
 def query_search(config):
-	# store doc_ids in memory for fast retrieval (since doc_ids_file is supposed to need small memory space)
-
-	print("Reading doc_ids file ...")
 
 	doc_ids = read_doc_ids_file(config)
+
 	if doc_ids is None:
-		print("Doc_ids file is empty or does not exist. Exit now")
-		sys.exit()
-	print("Complete reading doc_ids file\n")
+		doc_ids = defaultdict(bool)
 
+	anchor_terms = read_anchor_terms_file(config)
 
-	print("Reading strong_index file ... ")
+	if anchor_terms is None:
+		strong_terms = defaultdict(bool)
 
-	strong_index = read_strong_index_file(config)
-	if strong_index is None:
-		print("strong_index file is empty or does not exist. Exit now")
-		sys.exit()
-	print("Complete reading strong_index file\n")
+	num_documents = len(doc_ids)
 
-	# store term_line_relationship for fast retrieval (since term_line_relationship file is supposed to need small memory space)
+	strong_terms = read_strong_terms_file(config)
 
-	print("Reading term_line_relationship file ... ")
+	if strong_terms is None:
+		strong_terms = defaultdict(bool)
 
 	term_line_relationship = read_term_line_relationship_file(config)
+
 	if term_line_relationship is None:
-		print("term_line_relationship file is empty or does not exist. Exit now")
-		sys.exit()
-	print("Complete reading term_line_relationship file\n")
+		term_line_relationship = defaultdict(bool)
+
+	num_terms = len(term_line_relationship)
+
+	cache = defaultdict(bool)
 
 	# M2: query search . for now still using boolean retrieval AND
 
@@ -76,13 +68,13 @@ def query_search(config):
 				loop = False
 				continue
 
-		cache = read_cache_file(config)
+		# cache = read_cache_file(config)
 
 		time_start = time.process_time()
 
 		try:
 			query_terms = get_terms_from_query(query)
-			query_result = search(config, query_terms, doc_ids,term_line_relationship, cache, strong_index)
+			query_result = search(config, query_terms, doc_ids,term_line_relationship, cache, strong_terms, anchor_terms)
 		except Exception:
 			print("there is some error with the query: ", query,". Please try different query")
 			continue
@@ -90,7 +82,7 @@ def query_search(config):
 
 		print_query_doc_name(config,query,doc_ids,query_result,(time_end-time_start)*1000)
 
-		update_query_cache(config,query_terms,term_line_relationship)
+		# update_query_cache(config,query_terms,term_line_relationship)
 	sys.exit()
 
 #################################################################################################################################
@@ -114,12 +106,3 @@ if __name__ == '__main__':
 	query_search(config)
 
 	sys.exit()
-
-
-
-
-
-
-
-
-

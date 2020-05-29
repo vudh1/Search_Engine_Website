@@ -1,9 +1,51 @@
-# Search Engine Website
 
-## Run Program
+# About
 
-- Add DEV folder in the folder containing all files
+This is a search engine created from the ground up that is capable of handling tens of thousands of documents or Web pages, under harsh operational constraints and having a query response time under 300 milliseconds.
 
+
+# Install Dependencies
+
+*Doing Install Dependencies step only if the virtual environment attached is not working. Skip this section if you want.*
+
+### Install Python3
+
+If you do not have Python 3.6+:
+
+*The program should use Python 3.6+ since some functions are not in Python 2+ versions*
+
+Windows: https://www.python.org/downloads/windows/
+
+Linux: https://docs.python-guide.org/starting/install3/linux/
+
+MAC: https://docs.python-guide.org/starting/install3/osx/
+
+Check if pip is installed by opening up a terminal/command prompt and typing
+the commands `python3 -m pip`. This should show the help menu for all the
+commands possible with pip. If it does not, then get pip by following the
+instructions at https://pip.pypa.io/en/stable/installing/
+
+To install the dependencies for this project run the following two commands
+after ensuring pip is installed for the version of python you are using.
+Admin privileges might be required to execute the commands. Also make sure
+that the terminal is at the root folder of this project.
+
+
+### Virtual Environment Tutorial
+
+```python
+(venv) $ mkdir my_virtual_environment
+(venv) $ cd my_virtual_environment
+(venv) $ python3 -m venv venv
+(venv) $ cd ..
+(venv) $ source my_virtual_environment/venv/bin/activate
+(venv) $ pip install --upgrade pip
+(venv) $ pip install flask
+(venv) $ pip install flask-wtf
+(venv) $ pip install flask-sqlalchemy
+(venv) $ pip install nltk
+(venv) $ pip install BeautifulSoup4
+```
 
 - Type this line in terminal for running in virtual environment from venv folder.
 
@@ -11,10 +53,13 @@
 $ source my_virtual_environment/venv/bin/activate
 ```
 
-*The program should use Python3 since some functions are not in Python 2 versions*
+# Resource Requirements
+
+- Add DEV folder inside the folder containing all files
 
 
-### Option 1: Console Launch
+
+# Option 1: Running on Terminal
 ```python
 (venv) $ python3 console_launch.py
 ```
@@ -28,15 +73,21 @@ $ source my_virtual_environment/venv/bin/activate
 - Enter **'quit'** for terminate the program.
 
 
-### Option 2: Web UI Launch
+# Option 2: Running on Web Browser
 
-- If you want to create output folder with the inverted index list, use this line or you can skip this and update directly on the web UI
+- If you want to create output folder with the inverted index list, use this line. If the output folder with inverted index already exists, you can skip this and update directly on the web UI
 
 ```python
 (venv) $ python3 web_launch.py
 ```
 
-- Set Flask environment variables and running the WebUI by running these lines.
+- Use Makefile to running WebUI (it will automatically run all 5 lines below)
+
+```python
+(venv) $ make
+```
+
+- Instead of 'make' command line, you can set Flask environment variables and running the WebUI by running these lines.
 
 ```python
 (venv) $ export FLASK_APP=web_launch.py
@@ -45,14 +96,7 @@ $ source my_virtual_environment/venv/bin/activate
 (venv) $ export FLASK_RUN_PORT=8000
 (venv) $ python3 -m flask run
 ```
-
-- Or you can use Makefile instead (it will automatically run all 5 lines above)
-
-```python
-(venv) $ make
-```
-- Using  web browser to access *http://localhost:8000/*  (if you set different host name, port number, use the link shown on console output)
-
+- Using web browser to access *http://localhost:8000/*  (if you set different host name, port number, use the link shown on console output)
 
 - To exit the virtual environment, use this line:
 
@@ -60,7 +104,7 @@ $ source my_virtual_environment/venv/bin/activate
 (venv) $ deactivate
 ```
 
-## File Descriptions
+# Program File Descriptions
 
 ### config.ini
 
@@ -103,7 +147,7 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 *You can find more specific function descriptions in each file. Check the output files after running to confirm the format if you need to read again or use some functions in helper.py file*
 
-## Output Files
+# Output File Descriptions
 
 *Since the output files are binary files, this gives you a look at the data structures of each files*
 
@@ -124,10 +168,16 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 ```
 
-- output/strong_index.bin
+- output/strong_terms.bin
 ```python
-# a dictionary with key as strong term and value is a dictionary of doc_id and boolean True
-{term : {doc_id : True}}
+# a dictionary with key as strong terms (title, bold) and value is a list of doc_ids
+{term : [doc_id]}
+```
+
+- output/anchor_terms.bin
+```python
+# a dictionary with key as anchor terms and value is a list of doc_ids
+{term : [doc_id]}
 ```
 
 - output/term_line_relationships.bin
@@ -156,24 +206,6 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 ```
 
-## Virtual Environment Tutorial
-
-*If the virtual environment attached is not working, you can create your own*
-
-```python
-(venv) $ mkdir my_virtual_environment
-(venv) $ cd my_virtual_environment
-(venv) $ python3 -m venv venv
-(venv) $ cd ..
-(venv) $ source my_virtual_environment/venv/bin/activate
-(venv) $ pip install --upgrade pip
-(venv) $ pip install flask
-(venv) $ pip install flask-wtf
-(venv) $ pip install flask-sqlalchemy
-(venv) $ pip install nltk
-(venv) $ pip install BeautifulSoup4
-```
-
-## Demo
+# Demo
 
 ![](web_ui.gif)
