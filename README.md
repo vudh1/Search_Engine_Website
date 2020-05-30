@@ -54,9 +54,9 @@ $ source my_virtual_environment/venv/bin/activate
 
 # Resource Requirements
 
-- Option 1: Using crawler program at https://github.com/danielvu2810/Python_Crawler to crawler the pages. Store the page results in **DEV** folder inside the folder containing all files.
+- Option 1: Using [crawler program](https://github.com/danielvu2810/Python_Crawler) to crawler the pages. Store the page results in **DEV** folder inside the folder containing all files.
 
-- Option 2: Download and decompress the zip folder at https://drive.google.com/file/d/1vBJof00Hl4F8bi7Nu236BLBuZE7T0zD7/view?usp=sharing. Add **DEV** folder inside the folder containing all files.
+- Option 2: Download and decompress the [zip folder](https://drive.google.com/file/d/1vBJof00Hl4F8bi7Nu236BLBuZE7T0zD7/view?usp=sharing). Add **DEV** folder inside the folder containing all files.
 
 
 # Web Browser Launch
@@ -139,7 +139,7 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 - output/index.bin
 ```python
-# Each line is a dictionary with the key is the term, and the posting is a dictionary of doc_id and its entry.
+# Each line is a dictionary with the key is the term, and value is posting.
 # Use line offset to read the posting of each term
 # posting = { doc_id : entry }
 { term1 : posting1 }
@@ -150,27 +150,20 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 
 - output/strong_terms.bin
 ```python
-# a dictionary with key as strong terms (title, bold) and value is a list of doc_ids
+# a dictionary with key as strong terms (title, bold), value is doc_ids
 {term : [doc_id]}
 ```
 
 - output/anchor_terms.bin
 ```python
-# a dictionary with key as anchor terms and value is a list of doc_ids
+# a dictionary with key as anchor terms, value is a list of doc_ids
 {term : [doc_id]}
 ```
 
 - output/term_line_relationships.bin
 ```python
-# a dictionary with key is term, value is the line_offset of that term and its posting in index.bin
+# a dictionary with key is term, value is the line_offset of its posting in index.bin
 { term : line_offset}
-```
-
-- output/query_cache.bin
-```python
-# a dictionary with maximum MAX_QUERY_CACHE_ENTRIES elements;
-# key is term, value is the list/pair of 2 elements, posting and the count as the times that term is queried
-{ term : [posting, count]}
 ```
 
 - output/partial_index/[0-N]
