@@ -54,7 +54,7 @@ $ source my_virtual_environment/venv/bin/activate
 
 # Resource Requirements
 
-- If you want to update index, add **DEV** folder inside the folder containing all files or use crawler program
+- If you want to update index, compress the file from https://drive.google.com/file/d/1vBJof00Hl4F8bi7Nu236BLBuZE7T0zD7/view?usp=sharing and add **DEV** folder inside the folder containing all files or use crawler program
 
 - Crawler program is at https://github.com/danielvu2810/Python_Crawler
 
