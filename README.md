@@ -1,4 +1,3 @@
-
 # About
 
 This is a search engine created from the ground up that is capable of handling tens of thousands of documents or Web pages, under harsh operational constraints and having a query response time under 300 milliseconds.
@@ -55,25 +54,12 @@ $ source my_virtual_environment/venv/bin/activate
 
 # Resource Requirements
 
-- Add DEV folder inside the folder containing all files
+- If you want to update index, add **DEV** folder inside the folder containing all files or use crawler program
+
+- Crawler program is at https://github.com/danielvu2810/Python_Crawler
 
 
-
-# Option 1: Running on Terminal
-```python
-(venv) $ python3 console_launch.py
-```
-
-- You can have option to update inverted_index.
-
-- If yes, you have to wait for inverted_index file is created under **output** folder. It should take a while (20-30mins) to read all documents
-
-- After output folder is created, there will be a input prompt request on terminal console. Enter query term for searching
-
-- Enter **'quit'** for terminate the program.
-
-
-# Option 2: Running on Web Browser
+# Web Browser Launch
 
 - If you want to create output folder with the inverted index list, use this line. If the output folder with inverted index already exists, you can skip this and update directly on the web UI
 
@@ -131,12 +117,6 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 ### helper.py
 - some helpers functions for launch.py, indexer.py, search.py and ranking.py
 - some functions are useful to read the inverted index file (at specific line), doc_ids file, term_line_relation file
-
-### console_launch.py
-- main program for console launch
-- create inverted index
-- read doc_ids and term_line_relationship files
-- search query
 
 ### forms.py
 - query search form in WebUI

@@ -43,8 +43,16 @@
     <article class="media content-section">
       <div class="media-body">
         {% for resp in result_info.items%}
+        {% if resp.title == 'only_stop_words' %}
+        <p class="article-content"><a href = "{{resp.url}}" target="_blank">The query '{{query}}' has only stop words, go back to change your query or click here to know what are they...</a></p>
+        {% else %}
         <p class="article-content"><a href = "{{resp.url}}" target="_blank">{{ resp.title }}</a></p>
+        {% endif %}
         {% endfor %}
+
+        {% if length <= max_urls_per_page %}
+
+        {% else %}
 
         {% for page_num in result_info.iter_pages() %}
         {% if page_num %}
@@ -59,6 +67,7 @@
         {% endif %}
         {% endfor %}
 
+        {% endif %}
 
       </div>
     </article>

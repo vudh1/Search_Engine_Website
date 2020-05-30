@@ -34,6 +34,8 @@ class Config(object):
 		# result database file to store the result of query
 		self.result_database_file_name = 'sqlite:///' +  self.output_folder_name + config["FILE_NAME"]["RESULT_DATABASE_FILENAME"]
 
+		# number of iterations for ranking
+		self.num_iterations_for_page_ranking = int(config["NUMBERS"]["NUM_ITERATIONS_FOR_PAGE_RANKING"])
 		# the number of urls printed to console after query
 		self.max_num_urls_per_query = int(config["NUMBERS"]["MAX_NUM_URLS_PER_QUERY"])
 
@@ -72,7 +74,6 @@ class Config(object):
 
 		# percent of threshold increasing until at least found 1 high idf terms
 		self.threshold_increase_percent = float(config["NUMBERS"]["THRESHOLD_INCREASE_PERCENT"])
-
 
 
 def read_config_file(config_file):

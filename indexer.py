@@ -3,7 +3,7 @@ import os, sys, re, math, json, pickle, bs4, shutil, warnings
 from nltk.stem.porter import *
 from pickle import UnpicklingError
 from collections import OrderedDict, defaultdict
-
+from copy import deepcopy
 from helper import get_terms_from_query, generate_permutations_for_sim_hash
 from entry import Entry
 
@@ -13,34 +13,70 @@ warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 html_elements = ['head', 'title', 'meta', 'style', 'script', '[document]']
 
 num_documents = 0
-
 num_terms = 0
-
 doc_ids = dict()
-
 doc_urls = defaultdict(bool)
-
 anchor_urls = defaultdict(bool)
-
+anchor_terms = defaultdict(set)
 document_lengths = defaultdict(bool)
-
 total_tokens = defaultdict(bool)
-
-strong_terms = dict()
-
+strong_terms = defaultdict(list)
 term_ids = defaultdict(bool)
-
 term_line_relationship = OrderedDict()
-
 exact_duplicate_hash = defaultdict(bool)
-
 term_hash_bits = defaultdict(bool)
-
 tables = [None] * 64
-
 
 #############################################################################################
 
+# clear all previous output
+def clean_previous_data(config):
+	global num_documents
+	global num_terms
+	global doc_ids
+	global doc_urls
+	global document_lengths
+	global anchor_terms
+	global anchor_urls
+	global total_tokens
+	global strong_terms
+	global term_ids
+	global term_line_relationship
+	global exact_duplicate_hash
+	global term_hash_bits
+	global tables
+
+	if(os.path.exists(config.output_folder_name) is True):
+		try:
+			shutil.rmtree(config.output_folder_name)
+		except OSError as e:
+			print("Error Delete Folder.")
+
+	# create folder
+	if(os.path.exists(config.output_folder_name) is False):
+		os.mkdir(config.output_folder_name)
+
+	partial_folder_dir = config.output_folder_name + config.partial_index_folder_name
+
+	if(os.path.exists(partial_folder_dir) is False):
+		os.mkdir(partial_folder_dir)
+
+	num_documents = 0
+	num_terms = 0
+	doc_ids = dict()
+	doc_urls = defaultdict(bool)
+	document_lengths = defaultdict(bool)
+	anchor_urls = defaultdict(bool)
+	anchor_terms = defaultdict(set)
+	total_tokens = defaultdict(bool)
+	strong_terms = defaultdict(list)
+	term_ids = defaultdict(bool)
+	term_line_relationship = OrderedDict()
+	exact_duplicate_hash = defaultdict(bool)
+	term_hash_bits = defaultdict(bool)
+	tables = [None] * 64
+
+#############################################################################################
 
 # generate sim hash for document
 def sim_hash(terms):
@@ -128,7 +164,7 @@ def check_near_duplicate(config, terms):
 #############################################################################################
 
 # analyze text for duplicate and get terms
-def analyze_text(config, text,doc_id):
+def analyze_text(config, text, doc_id):
 	global term_hash_bits
 	global exact_duplicate_hash
 
@@ -203,7 +239,6 @@ def compute_posting_value(terms):
 	return positions, frequencies, tf_scores
 
 
-
 # compute tf_idf_scores of each term after reading all documents
 def compute_tf_idf_scores_for_a_posting(posting):
 	global num_documents
@@ -223,12 +258,14 @@ def compute_tf_idf_scores_for_a_posting(posting):
 
 	return posting
 
+
+# check if a string is a link or not
 def check_for_link(url):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
     return re.match(regex, url) is not None
 
 # compute entry posting from the text and add to new list
-def add_to_list(config,text,doc_id, anchor_tags):
+def add_to_list(config,text, doc_id, anchor_tags):
 	global num_documents
 	global total_tokens
 	global exact_duplicate_hash
@@ -261,14 +298,13 @@ def add_to_list(config,text,doc_id, anchor_tags):
 			anchor_terms = get_terms_from_query(anchor_content)
 
 			if len(anchor_terms) != 0:
-				anchor_urls[anchor_url] = anchor_terms
+				anchor_urls[anchor_url] = [anchor_terms, doc_id]
 
 	return True
 
 
 # merge all entries in a term file
 # sort entries in posting by frequency
-
 def get_merge_entries_of_a_term(config,term):
 	global term_ids
 	global document_lengths
@@ -299,6 +335,7 @@ def get_merge_entries_of_a_term(config,term):
 	return posting
 
 
+# normalized document length after merge
 def update_normalized_document_lengths_after_merge():
 	global document_lengths
 	global doc_ids
@@ -309,7 +346,6 @@ def update_normalized_document_lengths_after_merge():
 	document_lengths.clear()
 
 # merge all files in alphabetic order
-
 def merge_partial_index(config):
 	global term_line_relationship
 
@@ -354,25 +390,65 @@ def partial_indexer(config):
 
 	total_tokens.clear()
 
-# write anchor_terms to file
-def write_anchor_terms_file(config):
+
+# get page relationship for ranking
+def get_page_relationship():
 	global anchor_urls
 	global doc_urls
+	global anchor_terms
+	global doc_ids
 
-	anchor_terms = defaultdict(list)
+	anchor_terms = defaultdict(set)
+	links_to = defaultdict(set)
+	links_from = defaultdict(set)
 
 	for url, terms in anchor_urls.items():
-		for term in terms:
-			if doc_urls[url] != False:
-				anchor_terms[term].append(doc_urls[url])
+		if doc_urls[url] != False:
+			for term in terms[0]:
+				anchor_terms[term].add(doc_urls[url])
+
+			# dont add same page link to itself
+			if terms[1] != doc_urls[url]:
+				links_from[terms[1]].add(doc_urls[url])
+				links_to[doc_urls[url]].add(terms[1])
+
+	anchor_urls.clear()
+	doc_urls.clear()
+
+	return links_to, links_from
+
+# calculate page rank scores
+def calculate_page_rank_scores(config):
+	global doc_ids
+
+	links_to, links_from = get_page_relationship()
+
+	page_rank_scores = defaultdict(lambda : float(1/len(doc_ids)))
+	new_page_rank_scores = defaultdict(float)
+
+	for i in range(config.num_iterations_for_page_ranking):
+		for doc_id in doc_ids.keys():
+			links = links_to[doc_id]
+
+			for l in links:
+				new_page_rank_scores[doc_id] += page_rank_scores[l] / int(len(links_from[l]))
+
+		page_rank_scores = deepcopy(new_page_rank_scores)
+		new_page_rank_scores = defaultdict(float)
+
+	for doc_id, score in page_rank_scores.items():
+		doc_ids[doc_id][3] = score
+
+# write anchor_terms to file
+def write_anchor_terms_file(config):
+	global anchor_terms
 
 	anchor_terms = dict(anchor_terms)
 
 	with open(config.anchor_terms_file_name,'wb') as f:
 			pickle.dump(anchor_terms,f)
 
-	anchor_urls.clear()
-	doc_urls.clear()
+	anchor_terms.clear()
 
 # write doc ids file
 def write_doc_ids_file(config):
@@ -470,7 +546,8 @@ def indexer(config):
 						if doc_urls[doc_url] == False:
 							doc_title = set_doc_title(config,soup,doc_id,doc_url)
 
-							doc_ids[doc_id] = [doc_title,doc_url,0]
+							doc_ids[doc_id] = [doc_title,doc_url,0.0,0.0] # title, url, document_length, page that links to it, num_pages that it points to
+
 							doc_urls[doc_url] = doc_id
 
 							text = ' '.join(filter(tag, soup.find_all(text=True)))
@@ -504,51 +581,6 @@ def indexer(config):
 	term_hash_bits.clear()
 	tables.clear()
 
-# clear all previous output
-def clean_previous_data(config):
-	global num_documents
-	global num_terms
-	global doc_ids
-	global doc_urls
-	global document_lengths
-	global total_tokens
-	global strong_terms
-	global term_ids
-	global term_line_relationship
-	global exact_duplicate_hash
-	global term_hash_bits
-	global tables
-
-	if(os.path.exists(config.output_folder_name) is True):
-		try:
-			shutil.rmtree(config.output_folder_name)
-		except OSError as e:
-			print("Error Delete Folder.")
-
-	# create folder
-	if(os.path.exists(config.output_folder_name) is False):
-		os.mkdir(config.output_folder_name)
-
-	partial_folder_dir = config.output_folder_name + config.partial_index_folder_name
-
-	if(os.path.exists(partial_folder_dir) is False):
-		os.mkdir(partial_folder_dir)
-
-	num_documents = 0
-	num_terms = 0
-	doc_ids = dict()
-	doc_urls = defaultdict(bool)
-	document_lengths = defaultdict(bool)
-	total_tokens = defaultdict(bool)
-	strong_terms = defaultdict(list)
-	anchor_urls = defaultdict(bool)
-	term_ids = defaultdict(bool)
-	term_line_relationship = OrderedDict()
-	exact_duplicate_hash = defaultdict(bool)
-	term_hash_bits = defaultdict(bool)
-	tables = [None] * 64
-
-
 # main inverted index function
 def inverted_index(config):
 	global num_documents
@@ -566,13 +598,17 @@ def inverted_index(config):
 	# merge all partial index
 	merge_partial_index(config)
 
-	print("----> Running write_doc_ids_file(config)....")
-	# write anchor terms dicionary to file
-	write_anchor_terms_file(config)
+	print("----> Running calculate_page_rank_scores(config)....")
+	# calculate_page_rank_scores(config)
+	calculate_page_rank_scores(config)
 
 	print("----> Running write_doc_ids_file(config)....")
 	# write doc_ids dicionary to file
 	write_doc_ids_file(config)
+
+	print("----> Running write_anchor_terms_file(config)....")
+	# write anchor terms dicionary to file
+	write_anchor_terms_file(config)
 
 	print("----> Running write_strong_terms_file(config)....")
 	# write strong_terms dicionary to file

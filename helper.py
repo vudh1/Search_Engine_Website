@@ -10,14 +10,14 @@ stem_stop_words = defaultdict(bool, {'about': True, 'abov': True, 'after': True,
 
 
 # read the configurations (file names, values, etc.)
-# used by: console_launch, web_launch
+# used by: web_launch
 def get_configurations():
 	# read the configurations (file names, values, etc.)
 	config = read_config_file("config.ini")
 	return config
 
 # tokenize and stemming the query
-# used by: console_launch, web_launch
+# used by: web_launch
 def get_terms_from_query(query):
 	regex = re.compile('[^a-z0-9A-Z]')
 	query = regex.sub(' ', query).lower()
@@ -27,8 +27,8 @@ def get_terms_from_query(query):
 	return query_terms
 
 
-# read doc_id.bin for doc_id and name of the files
-# used by: helper, console_launch, web_launch
+# read anchor_terms.bin for doc_id and value of doc_id of the files
+# used by: helper, web_launch
 def read_anchor_terms_file(config):
 	if(os.path.exists(config.anchor_terms_file_name) is True):
 		with open(config.anchor_terms_file_name, 'rb') as f:
@@ -38,7 +38,7 @@ def read_anchor_terms_file(config):
 	return defaultdict(bool)
 
 # read doc_id.bin for doc_id and name of the files
-# used by: helper, console_launch, web_launch
+# used by: helper, web_launch
 def read_doc_ids_file(config):
 	if(os.path.exists(config.doc_id_file_name) is True):
 		with open(config.doc_id_file_name, 'rb') as f:
@@ -47,8 +47,8 @@ def read_doc_ids_file(config):
 			return doc_ids
 	return defaultdict(bool)
 
-# read strong_terms.bin for strong index and its doc_id of the files
-# used by: helper, console_launch, web_launch
+# read strong_terms.bin for strong index and its doc_ids
+# used by: helper, web_launch
 def read_strong_terms_file(config):
 	if(os.path.exists(config.strong_terms_file_name) is True):
 		with open(config.strong_terms_file_name, 'rb') as f:
@@ -57,8 +57,9 @@ def read_strong_terms_file(config):
 			return strong_terms
 	return defaultdict(bool)
 
+
 # read term_line_relationships.bin for the line number of each term in index.bin for faster retrieval
-# used by: helper, console_launch, web_launch
+# used by: helper, web_launch
 def read_term_line_relationship_file(config):
 	if(os.path.exists(config.term_line_relationship_file_name) is True):
 		with open(config.term_line_relationship_file_name, 'rb') as f:
@@ -71,26 +72,7 @@ def read_term_line_relationship_file(config):
 	return defaultdict(bool)
 
 
-#print query result to console output
-#used by: console_launch
-def print_query_doc_name(config,query,doc_ids,query_result,time):
-	time = round(time,2)
-
-	if query_result is not None:
-		print("Retrieved a total of " + str(len(query_result)) +  " documents of '" + str(query)+"' in "+str(time)+"ms.")
-
-		for i in range(len(query_result)):
-			if i < int(config.max_num_urls_per_page):
-				print(doc_ids[query_result[i]][0], ": ",doc_ids[query_result[i]][1])
-			else:
-				break
-	else:
-		print("Retrieved a total of " + "0" +  " documents of '" + str(query)+"' in "+str(time)+"ms.")
-
-	print("")
-
-
-#directly read at a specific line in terms_to_postings.json for term_posting information without storing large data in memory
+#directly read at a specific line in index.bin for inverted index information without storing large data in memory
 #used by: helper
 def search_term_posting_at_specific_line(config,line_offset):
 	resource_term_posting = defaultdict(bool)
@@ -120,55 +102,8 @@ def search_term_posting_in_index(config, term, term_line_relationship):
 
 	return resource_term_posting
 
-#read cache file
-#used by: helper, search
-def read_cache_file(config):
-	cache = defaultdict(bool)
 
-	if os.path.exists(config.query_cache_file_name) is True:
-		with open(config.query_cache_file_name, 'rb') as f:
-				try:
-					data = pickle.load(f)
-					for term, posting_and_count in data.items():
-						cache[term] = tuple([posting_and_count[0],posting_and_count[1]])
-				except (EOFError, UnpicklingError):
-					return cache
-	return cache
-
-# update query_cache
-# use by console_launch, web_launch
-def update_query_cache(config,query_terms,term_line_relationship):
-	cache = read_cache_file(config)
-
-	for term in query_terms:
-		# term not exist in cache
-		if cache[term] == False:
-			resource_term_posting = search_term_posting_in_index(config, term,term_line_relationship)
-
-			if resource_term_posting is not None:
-				cache[term] = tuple([resource_term_posting[term],1])
-			else:
-				return
-
-		#term exist in cache
-		else:
-			cache[term] = tuple([cache[term][0],cache[term][1] + 1])
-
-	sorted_cache = dict()
-
-	if len(cache) > 1:
-		sorted_cache = sorted(cache.items(), key=lambda kv: kv[1][1])
-
-	while len(sorted_cache) > config.max_num_query_cache_terms:
-		sorted_cache.pop(0)
-
-	sorted_cache_result = dict(sorted_cache)
-
-	with open(config.query_cache_file_name, 'wb') as f:
-		pickle.dump(sorted_cache_result,f)
-
-
-# generate permutations for near duplicate check
+# generate permutations for hamming distance
 # used by: indexer
 def generate_permutations_for_sim_hash(config, sim_hash_result):
 	block_1 = sim_hash_result[:11]

@@ -5,13 +5,11 @@ from flask_sqlalchemy import SQLAlchemy
 from collections import defaultdict
 from pickle import UnpicklingError
 from forms import QueryTerm
+from copy import deepcopy
 
 from search import search
 from indexer import inverted_index
 from helper import get_configurations, get_terms_from_query, read_doc_ids_file, read_term_line_relationship_file, read_strong_terms_file,read_anchor_terms_file
-
-from helper import read_cache_file
-from helper import update_query_cache
 
 # #################################################################################################################################
 
@@ -23,6 +21,8 @@ if config is None:
 
 if(os.path.exists(config.output_folder_name) is False):
 	os.mkdir(config.output_folder_name)
+
+# #################################################################################################################################
 
 
 app = Flask(__name__)
@@ -46,22 +46,17 @@ class QueryResult(db.Model):
 
 # #################################################################################################################################
 
-
 doc_ids = defaultdict(bool)
 term_line_relationship = defaultdict(bool)
 strong_terms = defaultdict(bool)
-cache = defaultdict(bool)
 anchor_terms = defaultdict(bool)
-
 num_documents = 0
 num_terms = 0
-
 query = ""
 query_terms = []
-
 query_time = 0
-
 query_ids_results = []
+has_only_stop_words = False
 
 
 # #################################################################################################################################
@@ -76,30 +71,38 @@ def search_ui():
 	global doc_ids
 	global strong_terms
 	global anchor_terms
+	global has_only_stop_words
 
 	time_start = time.process_time()
 
-	try:
-		query_terms = get_terms_from_query(query)
-		query_ids_results = search(config, query_terms, doc_ids,term_line_relationship, cache, strong_terms, anchor_terms)
-	except Exception:
-		query_ids_results = []
+	# try:
+	query_ids_results = []
+	query_terms = get_terms_from_query(query)
+	query_ids_results, has_only_stop_words = search(config, query_terms, doc_ids,term_line_relationship, strong_terms, anchor_terms)
+
+	# except Exception:
+	# 	query_ids_results = []
 
 	time_end = time.process_time()
 
 	query_time = round((time_end-time_start)*(10**3),2)
 
+# update database table with new result
 def update_database():
 	global config
 	global db
 	global query_ids_results
+	global has_only_stop_words
 
 	db.drop_all()
 
 	db.create_all()
 
-	for i in range(len(query_ids_results)):
-		db.session.add(QueryResult(title = doc_ids[query_ids_results[i]][0],url = doc_ids[query_ids_results[i]][1]))
+	if has_only_stop_words:
+		db.session.add(QueryResult(title = 'only_stop_words',url = 'https://www.ranks.nl/stopwords'))
+	else:
+		for i in range(len(query_ids_results)):
+			db.session.add(QueryResult(title = doc_ids[query_ids_results[i]][0],url = doc_ids[query_ids_results[i]][1]))
 
 	db.session.commit()
 
@@ -110,6 +113,7 @@ def update_database():
 	return result_info
 
 
+# update statistics when first launch web_ui and after every update
 def update_statistics():
 	global config
 	global doc_ids
@@ -143,8 +147,10 @@ def update_statistics():
 
 	num_terms = len(term_line_relationship)
 
+
 # #################################################################################################################################
 
+# home page
 @app.route("/",methods = ['GET', 'POST'])
 @app.route("/home",methods = ['GET', 'POST'])
 def home():
@@ -163,15 +169,40 @@ def home():
 		return redirect(url_for('result'))
 	return render_template('home.html', title ='Home', num_documents = num_documents, num_terms = num_terms, form = form)
 
+# search engine information
 @app.route("/about")
 def about():
 	return render_template('about.html', title='About')
 
+# update status
 @app.route("/update")
 def update():
 	global config
 	global num_documents
 	global num_terms
+
+	num_documents, num_terms, indexer_time = update_index()
+
+	return render_template('update.html', title ='Update', indexer_time = indexer_time, num_documents = num_documents, num_terms = num_terms)
+
+# result of query searching
+@app.route("/result")
+def result():
+	global config
+	global query
+	global query_time
+	global query_ids_results
+
+	return render_template('result.html', title='Result', query = query,
+					 result_info = update_database(), length = len(query_ids_results), max_urls_per_page = config.max_num_urls_per_page, query_time = query_time)
+
+# #################################################################################################################################
+
+# update inverted index
+def update_index():
+	global config
+
+	print("\nIndexing document ...")
 
 	time_start = time.process_time()
 
@@ -184,39 +215,11 @@ def update():
 
 	indexer_time = round((time_end - time_start),2)
 
-	update_statistics()
-
-	return render_template('update.html', title ='Update', indexer_time = indexer_time, num_documents = num_documents, num_terms = num_terms)
-
-@app.route("/result")
-def result():
-	global query
-	global query_time
-	global query_ids_results
-
-	return render_template('result.html', title='Result', query = query,
-					 result_info = update_database(), length = len(query_ids_results) , query_time = query_time)
-
-# #################################################################################################################################
-
-def initial_indexer():
-	global config
-
-	print("\nIndexing document ...")
-	time_start = time.process_time()
-
-	num_documents, num_terms = inverted_index(config)
-
-	if num_documents == 0:
-		print("No files to index.")
-
-	time_end = time.process_time()
-
-	print("Complete indexing",num_documents, "documents in", (time_end - time_start),"s\n")
+	print("Complete indexing",num_documents, "documents in", indexer_time,"s\n")
 
 	update_statistics()
 
-	print("WebUI is ready to use ... \n")
+	return num_documents, num_terms, indexer_time
 
 
 # #################################################################################################################################
@@ -224,5 +227,15 @@ def initial_indexer():
 update_statistics()
 
 if __name__ == '__main__':
-	initial_indexer()
+	is_update = input("\nDo You Want to Update Inverted Index List (Y/N): ")
+
+	if is_update.lower().strip() == "y":
+		update_index()
+
+	print("WebUI is ready to use ... Set Configurations and Run Web Application \n")
+
+
+
+
+
 

@@ -3,6 +3,5 @@ from wtforms import StringField, PasswordField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
 class QueryTerm(FlaskForm):
-	query = StringField('Enter query below: ',
-						   validators=[DataRequired(), Length(min=2, max=500)])
+	query = StringField('Enter query below: ', validators=[DataRequired(), Length(min=2, max=999)])
 	submit = SubmitField('Submit')
