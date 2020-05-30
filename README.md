@@ -54,26 +54,26 @@ $ source my_virtual_environment/venv/bin/activate
 
 # Resource Requirements
 
-- If you want to update index, compress the file from https://drive.google.com/file/d/1vBJof00Hl4F8bi7Nu236BLBuZE7T0zD7/view?usp=sharing and add **DEV** folder inside the folder containing all files or use crawler program
+- Option 1: Using crawler program at https://github.com/danielvu2810/Python_Crawler to crawler the pages. Store the page results in **DEV** folder inside the folder containing all files.
 
-- Crawler program is at https://github.com/danielvu2810/Python_Crawler
+- Option 2: Download and decompress the zip folder at https://drive.google.com/file/d/1vBJof00Hl4F8bi7Nu236BLBuZE7T0zD7/view?usp=sharing. Add **DEV** folder inside the folder containing all files.
 
 
 # Web Browser Launch
 
-- If you want to create output folder with the inverted index list, use this line. If the output folder with inverted index already exists, you can skip this and update directly on the web UI
+- If the output folder with inverted index already exists, you can skip this and update directly on the web UI. Otherwise, if you want to create output folder with the inverted index list:
 
 ```python
 (venv) $ python3 web_launch.py
 ```
 
-- Use Makefile to running WebUI (it will automatically run all 5 lines below)
+- Use Makefile to running WebUI (it will automatically run all 5 lines below):
 
 ```python
 (venv) $ make
 ```
 
-- Instead of 'make' command line, you can set Flask environment variables and running the WebUI by running these lines.
+- Instead of **make** command line, you can set Flask environment variables and running the WebUI:.
 
 ```python
 (venv) $ export FLASK_APP=web_launch.py
@@ -82,9 +82,9 @@ $ source my_virtual_environment/venv/bin/activate
 (venv) $ export FLASK_RUN_PORT=8000
 (venv) $ python3 -m flask run
 ```
-- Using web browser to access *http://localhost:8000/*  (if you set different host name, port number, use the link shown on console output)
+- Using web browser to access http://localhost:8000/  (if you set different host name, port number, use the link shown on console output)
 
-- To exit the virtual environment, use this line:
+- To exit the virtual environment:
 
 ```python
 (venv) $ deactivate
@@ -115,7 +115,7 @@ Entry_Posting(doc_id,freq,tf_idf, positions)
 ```
 
 ### helper.py
-- some helpers functions for launch.py, indexer.py, search.py and ranking.py
+- some helpers functions for web_launch.py, indexer.py, search.py and ranking.py
 - some functions are useful to read the inverted index file (at specific line), doc_ids file, term_line_relation file
 
 ### forms.py
