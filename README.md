@@ -4,7 +4,7 @@ A from-scratch search engine that indexes a local web corpus, ranks matching doc
 
 The project was built as an information-retrieval exercise with a focus on **disk-backed indexing, duplicate detection, query ranking, and fast lookup over tens of thousands of pages**.
 
-> **Portfolio note:** this is a historical academic project built against Python 3.6-era libraries. The architecture and algorithms are the focus; newer dependency versions may require small compatibility updates.
+> **Portfolio note:** this is a historical academic project originally run with Python 3.7 and 2020-era library versions. The original direct dependencies are now pinned in `requirements.txt`.
 
 ## Demo
 
@@ -75,6 +75,7 @@ The thresholds and weights are configurable in `config.ini`.
 | `helper.py` | Shared parsing, serialization, and query helpers |
 | `config.py` / `config.ini` | Runtime and ranking configuration |
 | `web_launch.py` | Flask application and index-update entry point |
+| `requirements.txt` | Reconstructed direct dependencies from the original environment |
 | `templates/` / `static/` | Web UI |
 | `web_ui.gif` | Project demo |
 
@@ -82,8 +83,10 @@ The thresholds and weights are configurable in `config.ini`.
 
 ### 1. Create an environment
 
+Python 3.7 is the closest match to the original checked-in environment:
+
 ```bash
-python3 -m venv .venv
+python3.7 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 ```
@@ -94,15 +97,11 @@ On Windows, activate with:
 .venv\Scripts\activate
 ```
 
-### 2. Install the project dependencies
-
-The original project used Python 3.6-compatible releases of:
+### 2. Install the original direct dependencies
 
 ```bash
-pip install flask flask-wtf flask-sqlalchemy nltk beautifulsoup4
+pip install -r requirements.txt
 ```
-
-If reproducing the original environment exactly, use package versions that still support Python 3.6.
 
 ### 3. Add a document corpus
 
