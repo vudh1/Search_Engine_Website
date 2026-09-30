@@ -1,184 +1,157 @@
-# About
+# Search Engine Website
 
-This is a search engine created from the ground up that is capable of handling tens of thousands of documents or Web pages, under harsh operational constraints and having a query response time under 300 milliseconds.
+A from-scratch search engine that indexes a local web corpus, ranks matching documents, and serves results through a Flask web interface.
 
+The project was built as an information-retrieval exercise with a focus on **disk-backed indexing, duplicate detection, query ranking, and fast lookup over tens of thousands of pages**.
 
-# Install Dependencies
+> **Portfolio note:** this is a historical academic project built against Python 3.6-era libraries. The architecture and algorithms are the focus; newer dependency versions may require small compatibility updates.
 
-*Doing Install Dependencies step only if the virtual environment attached is not working. Skip this section if you want.*
+## Demo
 
-### Install Python3
+![Search engine demo](web_ui.gif)
 
-If you do not have Python 3.6+:
+## What it demonstrates
 
-*The program should use Python 3.6+ since some functions are not in Python 2+ versions*
+- HTML parsing and text extraction with Beautiful Soup
+- tokenization and Porter stemming
+- exact-duplicate and near-duplicate filtering
+- SimHash-style fingerprints with Hamming-distance checks
+- partial indexes that are merged into a disk-backed inverted index
+- term positions for phrase/proximity-aware scoring
+- TF-IDF document weighting and cosine similarity
+- Boolean AND/OR candidate selection
+- boosts for strong terms such as titles/bold text
+- anchor-text signals
+- a Flask UI for searching, pagination, and rebuilding the index
 
-Windows: https://www.python.org/downloads/windows/
+## High-level flow
 
-Linux: https://docs.python-guide.org/starting/install3/linux/
-
-MAC: https://docs.python-guide.org/starting/install3/osx/
-
-Check if pip is installed by opening up a terminal/command prompt and typing
-the commands `python3 -m pip`. This should show the help menu for all the
-commands possible with pip. If it does not, then get pip by following the
-instructions at https://pip.pypa.io/en/stable/installing/
-
-To install the dependencies for this project run the following two commands
-after ensuring pip is installed for the version of python you are using.
-Admin privileges might be required to execute the commands. Also make sure
-that the terminal is at the root folder of this project.
-
-
-### Virtual Environment Tutorial
-
-```python
-(venv) $ mkdir my_virtual_environment
-(venv) $ cd my_virtual_environment
-(venv) $ python3 -m venv venv
-(venv) $ cd ..
-(venv) $ source my_virtual_environment/venv/bin/activate
-(venv) $ pip install --upgrade pip
-(venv) $ pip install flask
-(venv) $ pip install flask-wtf
-(venv) $ pip install flask-sqlalchemy
-(venv) $ pip install nltk
-(venv) $ pip install BeautifulSoup4
+```text
+HTML corpus (DEV/)
+        |
+        v
+  Parse + normalize
+        |
+        v
+Duplicate filtering
+        |
+        v
+ Partial indexes
+        |
+        v
+Merged inverted index
+        |
+        +-----------------------------+
+        |                             |
+        v                             v
+ query parsing                 metadata / boosts
+        |                             |
+        +-------------> ranking <-----+
+                        |
+                        v
+                  Flask results UI
 ```
 
-- Type this line in terminal for running in virtual environment from venv folder.
+## Ranking
 
-```python
-$ source my_virtual_environment/venv/bin/activate
+The ranking pipeline combines several signals rather than relying on a single score:
+
+1. keep the most useful query terms using document-frequency thresholds;
+2. select candidate documents with Boolean-style term coverage;
+3. calculate TF-IDF/cosine relevance;
+4. add positional bonuses when query terms occur together;
+5. apply strong-term and anchor-text boosts;
+6. return the highest-scoring documents to the web UI.
+
+The thresholds and weights are configurable in `config.ini`.
+
+## Repository layout
+
+| File / directory | Purpose |
+| --- | --- |
+| `indexer.py` | Parses documents, removes duplicates, and builds the inverted index |
+| `search.py` | Query-time lookup and result retrieval |
+| `ranking.py` | Ranking and scoring logic |
+| `helper.py` | Shared parsing, serialization, and query helpers |
+| `config.py` / `config.ini` | Runtime and ranking configuration |
+| `web_launch.py` | Flask application and index-update entry point |
+| `templates/` / `static/` | Web UI |
+| `web_ui.gif` | Project demo |
+
+## Running locally
+
+### 1. Create an environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 ```
 
-# Resource Requirements
+On Windows, activate with:
 
-- Option 1: Using [crawler program](https://github.com/danielvu2810/Python_Crawler) to crawler the pages. Store the page results in **DEV** folder inside the folder containing all files.
-
-- Option 2: Download and decompress the [zip folder](https://drive.google.com/file/d/1vBJof00Hl4F8bi7Nu236BLBuZE7T0zD7/view?usp=sharing). Add **DEV** folder inside the folder containing all files.
-
-
-# Web Browser Launch
-
-- If the output folder with inverted index already exists, you can skip this and update directly on the web UI. Otherwise, if you want to create output folder with the inverted index list:
-
-```python
-(venv) $ python3 web_launch.py
+```powershell
+.venv\Scripts\activate
 ```
 
-- Use Makefile to running WebUI (it will automatically run all 5 lines below):
+### 2. Install the project dependencies
 
-```python
-(venv) $ make
+The original project used Python 3.6-compatible releases of:
+
+```bash
+pip install flask flask-wtf flask-sqlalchemy nltk beautifulsoup4
 ```
 
-- Instead of **make** command line, you can set Flask environment variables and running the WebUI:.
+If reproducing the original environment exactly, use package versions that still support Python 3.6.
 
-```python
-(venv) $ export FLASK_APP=web_launch.py
-(venv) $ export FLASK_ENV=development
-(venv) $ export FLASK_RUN_HOST=localhost
-(venv) $ export FLASK_RUN_PORT=8000
-(venv) $ python3 -m flask run
-```
-- Using web browser to access http://localhost:8000/  (if you set different host name, port number, use the link shown on console output)
+### 3. Add a document corpus
 
-- To exit the virtual environment:
+Place the crawled HTML documents in:
 
-```python
-(venv) $ deactivate
+```text
+DEV/
 ```
 
-# Program File Descriptions
+A companion crawler is available in [Python_Crawler](https://github.com/vudh1/Python_Crawler).
 
-### config.ini
+### 4. Build or refresh the index
 
-- configurations for file names, variables, etc.
-
-### config.py
-- read config.ini for the program
-
-### indexer.py
-- M1 part for creating inverted index
-
-### search.py
-- M2 part for search query
-
-### ranking.py
-- M3 part for ranking
-
-### posting.py
-- class Entry_Posting
-```python
-Entry_Posting(doc_id,freq,tf_idf, positions)
+```bash
+python3 web_launch.py
 ```
 
-### helper.py
-- some helpers functions for web_launch.py, indexer.py, search.py and ranking.py
-- some functions are useful to read the inverted index file (at specific line), doc_ids file, term_line_relation file
+Answer `Y` when prompted to rebuild the inverted index.
 
-### forms.py
-- query search form in WebUI
+### 5. Start the web app
 
-### web_launch.py
-- main program for web launch using Flask
-- using HTML and CSS files in static & templates folders to build a webUI
-
-*You can find more specific function descriptions in each file. Check the output files after running to confirm the format if you need to read again or use some functions in helper.py file*
-
-# Output File Descriptions
-
-*Since the output files are binary files, this gives you a look at the data structures of each files*
-
-- output/doc_ids.bin
-```python
-# dictionary with key is doc_id, value is doc_name
-{ doc_id : doc_name }
+```bash
+make
 ```
 
-- output/index.bin
-```python
-# Each line is a dictionary with the key is the term, and value is posting.
-# Use line offset to read the posting of each term
-# posting = { doc_id : entry }
-{ term1 : posting1 }
-{ term2 : posting2 }
-{ term3 : posting3 }
+or:
 
+```bash
+export FLASK_APP=web_launch.py
+export FLASK_ENV=development
+export FLASK_RUN_HOST=localhost
+export FLASK_RUN_PORT=8000
+python3 -m flask run
 ```
 
-- output/strong_terms.bin
-```python
-# a dictionary with key as strong terms (title, bold), value is doc_ids
-{term : [doc_id]}
-```
+Then open `http://localhost:8000/`.
 
-- output/anchor_terms.bin
-```python
-# a dictionary with key as anchor terms, value is a list of doc_ids
-{term : [doc_id]}
-```
+## Generated index data
 
-- output/term_line_relationships.bin
-```python
-# a dictionary with key is term, value is the line_offset of its posting in index.bin
-{ term : line_offset}
-```
+The `output/` directory is generated at runtime and contains serialized lookup structures such as:
 
-- output/partial_index/[0-N]
+- document metadata;
+- the merged inverted index;
+- strong-term and anchor-term maps;
+- term-to-file-offset mappings;
+- temporary partial indexes during index construction.
 
-*All the partial index files and folder will be auto deleted after merging*
-```python
-# Each line is a partial_posting which is dictionary
-# key is the doc_id, and the value is entry of that doc_id of a term
-# partial_posting = { doc_id : entry }
-{ partial_posting1 }
-{ partial_posting2 }
-{ partial_posting3 }
+These files are intentionally ignored by Git because they can be regenerated from the corpus.
 
-```
+## Why this project is useful
 
-# Demo
-
-![](web_ui.gif)
+The project goes beyond a simple keyword filter: it implements the core pieces of a small search system—**index construction, duplicate suppression, persistent postings, relevance ranking, query execution, and a usable front end**—without relying on a hosted search product such as Elasticsearch.
