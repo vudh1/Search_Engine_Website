@@ -9,21 +9,22 @@ total_scores = defaultdict(lambda : [0,0,0]) # first element : cosine ;  second 
 
 # remove other low-idf terms
 def get_high_idf_terms(config, num_documents, unique_query_terms, query_postings):
+	if num_documents <= 0:
+		return list(unique_query_terms)
 
-	high_idf_terms = list()
+	threshold = max(0.0, min(1.0, config.threshold_high_idf_terms))
+	increase = max(0.01, config.threshold_increase_percent)
 
-	threshod = config.threshold_high_idf_terms
+	while True:
+		high_idf_terms = [
+			term for term in unique_query_terms
+			if len(query_postings[term]) / num_documents <= threshold
+		]
 
-	# keep increase threshold until at least one high_idf term is found, or stop until threshold is 1
-	while len(high_idf_terms) == 0 or threshod > 1:
-		for term in unique_query_terms:
-			if len(query_postings[term])/num_documents <= threshod:
-				high_idf_terms.append(term)
+		if high_idf_terms or threshold >= 1.0:
+			return high_idf_terms or list(unique_query_terms)
 
-		# increase threshold
-		threshod *= (1+config.threshold_increase_percent)
-
-	return high_idf_terms
+		threshold = min(1.0, threshold * (1.0 + increase))
 
 
 # get all docs that has majority of the query terms combining with (boolean OR, boolean AND)
@@ -45,10 +46,11 @@ def get_docs_to_consider(config, doc_ids, unique_query_terms, query_postings):
 	# if there is only one term, return all of its doc_ids
 	if len(unique_query_terms) == 1:
 		docs_to_consider = defaultdict(bool,{i : True for i in query_postings[unique_query_terms[0]].keys()})
-		return unique_query_terms,docs_to_consider, docs_has_all_terms
+		docs_has_all_terms = defaultdict(bool, docs_to_consider)
+		return unique_query_terms, docs_to_consider, docs_has_all_terms
 
 	# determine threshold to determine what should be the number as majority of terms
-	min_query_terms_length = math.floor(config.threshold_percent_of_terms_in_docs * len(unique_query_terms))
+	min_query_terms_length = max(1, math.ceil(config.threshold_percent_of_terms_in_docs * len(unique_query_terms)))
 
 	# remove doc_ids below threshold
 	all_doc_ids = set()
@@ -252,82 +254,61 @@ def update_total_scores(scores, index):
 	global total_scores
 	global mutex
 
-
-	for doc_id, score in scores.items():
-		mutex.acquire()
-		if index == 0:
-			total_scores[doc_id][0] += score
-		else:
-			total_scores[doc_id][0] += score
-			total_scores[doc_id][1] += score
-		mutex.release()
+	with mutex:
+		for doc_id, score in scores.items():
+			if index == 0:
+				total_scores[doc_id][0] += score
+			elif index == 1:
+				total_scores[doc_id][0] += score
+				total_scores[doc_id][1] += score
+			elif index == 2:
+				total_scores[doc_id][2] += score
 
 # calculate all the scores function
-def calculate_scores(config, doc_ids, total_query_terms, strong_terms, anchor_terms,query_postings):
+def calculate_scores(config, doc_ids, total_query_terms, strong_terms, anchor_terms, query_postings):
 	global total_scores
 
 	unique_query_terms = list(query_postings.keys())
-
-	total_scores = defaultdict(lambda : [0,0,0])
+	total_scores = defaultdict(lambda: [0, 0, 0])
 
 	if len(query_postings) == 1:
 		posting = query_postings[unique_query_terms[0]]
-
 		for doc_id in posting.keys():
 			total_scores[doc_id][0] = posting[doc_id].get_freq()
 
-		calculate_page_ranking_scores(config, doc_ids, list(posting.keys()))
-
-		calculate_anchor_terms_scores(config, anchor_terms, posting, unique_query_terms)
-
-		calculate_strong_terms_scores(config, strong_terms, posting, unique_query_terms)
-
+		candidates = defaultdict(bool, {doc_id: True for doc_id in posting.keys()})
+		calculate_anchor_terms_scores(config, anchor_terms, candidates, unique_query_terms)
+		calculate_strong_terms_scores(config, strong_terms, candidates, unique_query_terms)
+		calculate_page_ranking_scores(config, doc_ids, candidates)
 	else:
-		high_idf_terms, docs_to_consider, docs_has_all_terms = get_docs_to_consider(config, doc_ids, unique_query_terms, query_postings)
+		high_idf_terms, docs_to_consider, docs_has_all_terms = get_docs_to_consider(
+			config, doc_ids, unique_query_terms, query_postings
+		)
 
-		if len(high_idf_terms) == 0:
-			high_idf_terms = list(set(unique_query_terms))
+		if not docs_to_consider:
+			return OrderedDict()
 
-		threads = []
+		calculate_cosine_scores(
+			config, docs_to_consider, doc_ids, total_query_terms, high_idf_terms, query_postings
+		)
+		calculate_positional_scores(
+			config, docs_has_all_terms, high_idf_terms, query_postings
+		)
+		calculate_anchor_terms_scores(
+			config, anchor_terms, docs_to_consider, high_idf_terms
+		)
+		calculate_strong_terms_scores(
+			config, strong_terms, docs_to_consider, high_idf_terms
+		)
+		calculate_page_ranking_scores(config, doc_ids, docs_to_consider)
 
-		if docs_to_consider is not None:
-			threads.append(Thread(target = calculate_cosine_scores, args = (config, docs_to_consider, doc_ids, total_query_terms, high_idf_terms, query_postings)))
-
-		if docs_has_all_terms is not None:
-			threads.append(Thread(target = calculate_positional_scores, args = (config, docs_has_all_terms, high_idf_terms,query_postings)))
-
-		threads.append(Thread(target = calculate_anchor_terms_scores, args =(config, anchor_terms, docs_has_all_terms, high_idf_terms)))
-
-		threads.append(Thread(target = calculate_strong_terms_scores, args = (config, strong_terms, docs_has_all_terms, high_idf_terms)))
-
-		threads.append(Thread(target = calculate_page_ranking_scores, args = (config, doc_ids, docs_has_all_terms)))
-
-		for thread in threads:
-			thread.start()
-
-		for thread in threads:
-			thread.join()
-
-	# after sorting, the more important documents will be showed fist
-	sorted_total_scores = OrderedDict(sorted(total_scores.items(), key = lambda kv:(kv[1][0], kv[1][2]),reverse = True))
-
-
-	# sort the first 2 page that has the most importance with more priority for page that has strong terms and anchor texts
-	if len(sorted_total_scores) > config.max_num_urls_per_page*2:
-		sorted_total_scores_1 = OrderedDict(list(sorted_total_scores.items())[:config.max_num_urls_per_page*2])
-		sorted_total_scores_2 = OrderedDict(list(sorted_total_scores.items())[config.max_num_urls_per_page*2:])
-
-		# for top results, sort with strong important words
-		sorted_total_scores_1 = OrderedDict(sorted(sorted_total_scores_1.items(), key = lambda kv:(kv[1][1] * kv[1][0]),reverse = True))
-
-		# combine first 2 pages with the rest
-		sorted_total_scores = OrderedDict(list(sorted_total_scores_1.items()) + list(sorted_total_scores_2.items()))
-
-	else:
-		# for top results, sort with strong important words
-		sorted_total_scores = OrderedDict(sorted(total_scores.items(), key = lambda kv:(kv[1][1] * kv[1][0]),reverse = True))
-
-	return sorted_total_scores
+	return OrderedDict(
+		sorted(
+			total_scores.items(),
+			key=lambda kv: (kv[1][0], kv[1][1], kv[1][2]),
+			reverse=True,
+		)
+	)
 
 
 # main ranking function
