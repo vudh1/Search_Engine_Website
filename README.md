@@ -4,7 +4,7 @@ A from-scratch search engine that indexes a local web corpus, ranks matching doc
 
 The project was built as an information-retrieval exercise with a focus on **disk-backed indexing, duplicate detection, query ranking, and fast lookup over tens of thousands of pages**.
 
-> **Portfolio note:** this is a historical academic project originally run with Python 3.7 and 2020-era library versions. The original direct dependencies are now pinned in `requirements.txt`.
+> **Portfolio note:** this is a historical academic project originally built with Python 3.7-era libraries. The code has been repaired and smoke-tested on Python 3.12; `requirements.txt` now uses maintained compatible dependency ranges.
 
 ## Demo
 
@@ -83,10 +83,10 @@ The thresholds and weights are configurable in `config.ini`.
 
 ### 1. Create an environment
 
-Python 3.7 is the closest match to the original checked-in environment:
+Create a modern Python environment:
 
 ```bash
-python3.7 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 ```
@@ -97,7 +97,7 @@ On Windows, activate with:
 .venv\Scripts\activate
 ```
 
-### 2. Install the original direct dependencies
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -154,3 +154,12 @@ These files are intentionally ignored by Git because they can be regenerated fro
 ## Why this project is useful
 
 The project goes beyond a simple keyword filter: it implements the core pieces of a small search system—**index construction, duplicate suppression, persistent postings, relevance ranking, query execution, and a usable front end**—without relying on a hosted search product such as Elasticsearch.
+
+
+## Test
+
+```bash
+python -m unittest -v
+```
+
+The automated smoke test builds a temporary three-document corpus, creates the inverted index, executes matching and non-matching queries, and verifies the Flask home route.
