@@ -187,17 +187,16 @@ def analyze_text(config, text, doc_id):
 			total_bytes += sum(bytearray(stem_term, 'ascii'))
 
 			# Use a deterministic 64-bit term hash for near-duplicate fingerprints.
-			if term_hash_bits[stem_term] == False:
+			if stem_term not in term_hash_bits:
 				digest = hashlib.blake2b(stem_term.encode('utf-8'), digest_size=8).digest()
 				term_hash_bits[stem_term] = [int(i) for i in f'{int.from_bytes(digest, "big"):064b}']
 
 	# Exact duplicate detection must not rely on a weak byte-sum hash.
 	hash_value = hashlib.sha256(' '.join(terms).encode('utf-8')).hexdigest()
 
-	if exact_duplicate_hash[hash_value] == False:
-		exact_duplicate_hash[hash_value] = doc_id
-	else:
+	if hash_value in exact_duplicate_hash:
 		return []
+	exact_duplicate_hash[hash_value] = doc_id
 
 
 	# # check for near duplicate
@@ -279,7 +278,7 @@ def add_to_list(config,text, doc_id, anchor_tags):
 	positions, frequencies, tf_scores = compute_posting_value(terms)
 
 	for token in positions:
-		if total_tokens[token] == False:
+		if token not in total_tokens:
 			total_tokens[token] = dict()
 
 		entry = Entry(frequencies[token], tf_scores[token], 0, positions[token])
@@ -377,7 +376,7 @@ def partial_indexer(config):
 	global num_terms
 
 	for token,posting in total_tokens.items():
-		if term_ids[token] == False:
+		if token not in term_ids:
 			term_ids[token] = num_terms
 			term_line_relationship[token] = -1
 			num_terms +=1
@@ -400,7 +399,7 @@ def get_page_relationship():
 	links_from = defaultdict(set)
 
 	for url, terms in anchor_urls.items():
-		if doc_urls[url] != False:
+		if url in doc_urls:
 			for term in terms[0]:
 				anchor_terms[term].add(doc_urls[url])
 
@@ -541,7 +540,7 @@ def indexer(config):
 				soup = bs4.BeautifulSoup(data["content"], 'html.parser')
 				doc_url = str(data["url"]).split("#", 1)[0]
 
-				if doc_urls[doc_url] != False:
+				if doc_url in doc_urls:
 					continue
 
 				text = ' '.join(filter(tag, soup.find_all(string=True)))
