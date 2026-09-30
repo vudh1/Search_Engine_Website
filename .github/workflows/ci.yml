@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt
+      - run: python -m compileall -q .
+      - run: python -m unittest -v
+      - name: Flask import and route smoke test
+        run: |
+          python - <<'PY'
+          import web_launch
+          web_launch.app.config["TESTING"] = True
+          web_launch.app.config["WTF_CSRF_ENABLED"] = False
+          with web_launch.app.test_client() as client:
+              response = client.get("/")
+              assert response.status_code == 200, response.status_code
+          print("Flask home route passed")
+          PY
