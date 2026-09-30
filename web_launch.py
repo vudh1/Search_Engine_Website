@@ -19,14 +19,13 @@ if config is None:
 	print("No config file. Exit now")
 	sys.exit()
 
-if(os.path.exists(config.output_folder_name) is False):
-	os.mkdir(config.output_folder_name)
+os.makedirs(config.output_folder_name, exist_ok=True)
 
 # #################################################################################################################################
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '012345678998765433210'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'development-only-secret')
 app.config['SQLALCHEMY_DATABASE_URI'] = config.result_database_file_name
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -73,7 +72,7 @@ def search_ui():
 	global anchor_terms
 	global has_only_stop_words
 
-	time_start = time.process_time()
+	time_start = time.perf_counter()
 
 	# try:
 	query_ids_results = []
@@ -83,7 +82,7 @@ def search_ui():
 	# except Exception:
 	# 	query_ids_results = []
 
-	time_end = time.process_time()
+	time_end = time.perf_counter()
 
 	query_time = round((time_end-time_start)*(10**3),2)
 
@@ -131,7 +130,7 @@ def update_statistics():
 	anchor_terms = read_anchor_terms_file(config)
 
 	if anchor_terms is None:
-		strong_terms = defaultdict(bool)
+		anchor_terms = defaultdict(bool)
 
 	num_documents = len(doc_ids)
 
@@ -204,14 +203,14 @@ def update_index():
 
 	print("\nIndexing document ...")
 
-	time_start = time.process_time()
+	time_start = time.perf_counter()
 
 	num_documents, num_terms = inverted_index(config)
 
 	if num_documents == 0:
 		print("No files to index.")
 
-	time_end = time.process_time()
+	time_end = time.perf_counter()
 
 	indexer_time = round((time_end - time_start),2)
 
