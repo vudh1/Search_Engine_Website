@@ -25,7 +25,7 @@ def get_query_postings(config,total_query_terms,term_line_relationship):
 def search(config, total_query_terms, doc_ids,term_line_relationship, strong_terms, anchor_terms):
 
 	# as return empty after tokenizing
-	if total_query_terms == 0:
+	if not total_query_terms:
 		return [], False
 
 	# remove stop words
@@ -37,8 +37,8 @@ def search(config, total_query_terms, doc_ids,term_line_relationship, strong_ter
 	else:
 		query_postings = get_query_postings(config,total_query_terms,term_line_relationship)
 
-		if query_postings is None:
-			return []
+		if not query_postings:
+			return [], False
 
 		query_result = ranking(config, doc_ids,total_query_terms,strong_terms, anchor_terms,query_postings)
 
