@@ -1,4 +1,4 @@
-import os, sys, re, math, json, pickle, bs4, shutil, warnings
+import os, sys, re, math, json, pickle, bs4, shutil, warnings, hashlib
 
 from nltk.stem.porter import *
 from pickle import UnpicklingError
@@ -186,17 +186,14 @@ def analyze_text(config, text, doc_id):
 			total_chars += len(stem_term)
 			total_bytes += sum(bytearray(stem_term, 'ascii'))
 
-			#assign a hash number for term
+			# Use a deterministic 64-bit term hash for near-duplicate fingerprints.
 			if term_hash_bits[stem_term] == False:
-				term_hash_bits[stem_term] = [int(i) for i in '{:064b}'.format(hash(stem_term) + sys.maxsize + 1)]
+				digest = hashlib.blake2b(stem_term.encode('utf-8'), digest_size=8).digest()
+				term_hash_bits[stem_term] = [int(i) for i in f'{int.from_bytes(digest, "big"):064b}']
 
-	hash_value = 0
+	# Exact duplicate detection must not rely on a weak byte-sum hash.
+	hash_value = hashlib.sha256(' '.join(terms).encode('utf-8')).hexdigest()
 
-	if total_bytes > 0 and total_chars > 0:
-		hash_value = (total_bytes%total_chars) + total_chars/total_bytes
-
-
-	# check for exact duplicate
 	if exact_duplicate_hash[hash_value] == False:
 		exact_duplicate_hash[hash_value] = doc_id
 	else:
@@ -293,7 +290,7 @@ def add_to_list(config,text, doc_id, anchor_tags):
 	for a_tag in anchor_tags:
 		if check_for_link(a_tag['href']) == True:
 			anchor_url = a_tag['href']
-			anchor_content = str(a_tag.contents[0])
+			anchor_content = a_tag.get_text(" ", strip=True)
 
 			anchor_terms = get_terms_from_query(anchor_content)
 
@@ -531,52 +528,44 @@ def indexer(config):
 
 	doc_id = num_documents
 
-	for root, directories, files in os.walk(config.input_folder_name):
-		for dir in directories:
-			files = os.listdir(root + '/' + dir)
-			for f in files:
-				data = dict()
-				with open(root + '/' + dir + '/' + f) as jf:
-					try:
-						data = json.load(jf)
-						soup = bs4.BeautifulSoup(data["content"], 'html.parser')
-						doc_url = str(data["url"]).split("#",1)[0]
+	for root, _, files in os.walk(config.input_folder_name):
+		for file_name in files:
+			file_path = os.path.join(root, file_name)
+			try:
+				with open(file_path, encoding='utf-8') as jf:
+					data = json.load(jf)
 
-						# avoid duplicate file url
-						if doc_urls[doc_url] == False:
-							doc_title = set_doc_title(config,soup,doc_id,doc_url)
+				if "content" not in data or "url" not in data:
+					continue
 
-							doc_ids[doc_id] = [doc_title,doc_url,0.0,0.0] # title, url, document_length, page that links to it, num_pages that it points to
+				soup = bs4.BeautifulSoup(data["content"], 'html.parser')
+				doc_url = str(data["url"]).split("#", 1)[0]
 
-							doc_urls[doc_url] = doc_id
+				if doc_urls[doc_url] != False:
+					continue
 
-							text = ' '.join(filter(tag, soup.find_all(text=True)))
+				text = ' '.join(filter(tag, soup.find_all(string=True)))
+				anchor_tags = soup.find_all('a', href=True)
 
-							anchor_tags = soup.find_all('a', href=True, text=True)
+				if not add_to_list(config, text, doc_id, anchor_tags):
+					continue
 
-							is_sucess = add_to_list(config,text,doc_id, anchor_tags)
+				doc_title = set_doc_title(config, soup, doc_id, doc_url)
+				doc_ids[doc_id] = [doc_title, doc_url, 0.0, 0.0]
+				doc_urls[doc_url] = doc_id
+				doc_id += 1
 
-							if is_sucess == True: # no duplicate
-								doc_id += 1
-							else:
-								continue
+				if num_documents % config.max_documents_per_batch == 0:
+					print("----> Complete Reading " + str(num_documents) + " files...")
+					partial_indexer(config)
 
-							# offload to partial index per batch
-							if num_documents % config.max_documents_per_batch == 0:
-								print("----> Complete Reading " + str(num_documents)+" files...")
-								# write to disk partial indexes
-								partial_indexer(config)
+			except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+				continue
 
-					except Exception:
-						continue
-
-	# write to disk the last time
 	if len(total_tokens) > 0:
 		partial_indexer(config)
-		print("----> Complete Reading " + str(num_documents)+" files...")
+		print("----> Complete Reading " + str(num_documents) + " files...")
 
-
-	# clear from memory after done
 	exact_duplicate_hash.clear()
 	term_hash_bits.clear()
 	tables.clear()
