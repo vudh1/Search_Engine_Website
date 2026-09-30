@@ -1,16 +1,24 @@
-.idea/*
-.DS_Store
-*.pyc
-*.pdf
-/DEV/*
-/output*/*
-/__pycache__/*
+# Python
+__pycache__/
+*.py[cod]
 *.db
-# Default ignored files
-/shelf/
-/workspace.xml
-# Datasource local storage ignored files
-/dataSources/
-/dataSources.local.xml
-# Editor-based HTTP Client requests
-/httpRequests/
+.venv/
+venv/
+my_virtual_environment/
+
+# Generated search data
+DEV/
+output/
+
+# macOS / IDE
+.DS_Store
+.idea/
+.vscode/
+shelf/
+workspace.xml
+dataSources/
+dataSources.local.xml
+httpRequests/
+
+# Miscellaneous generated documents
+*.pdf
