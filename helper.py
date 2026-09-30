@@ -93,12 +93,11 @@ def search_term_posting_at_specific_line(config,line_offset):
 # get term - posting
 # used by: search, helper
 def search_term_posting_in_index(config, term, term_line_relationship):
-	line_offset = term_line_relationship[term]
-
-	if line_offset == False:
+	if term not in term_line_relationship:
 		return None
 
-	resource_term_posting = search_term_posting_at_specific_line(config,line_offset)
+	line_offset = term_line_relationship[term]
+	resource_term_posting = search_term_posting_at_specific_line(config, line_offset)
 
 	return resource_term_posting
 
