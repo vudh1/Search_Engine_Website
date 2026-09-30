@@ -1,5 +1,5 @@
-Flask==1.1.2
-Flask-SQLAlchemy==2.4.1
-Flask-WTF==0.14.3
-beautifulsoup4==4.9.1
-nltk==3.5
+Flask>=3.0,<4
+Flask-SQLAlchemy>=3.1,<4
+Flask-WTF>=1.2,<2
+beautifulsoup4>=4.12,<5
+nltk>=3.8,<4
